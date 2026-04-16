@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyBwRIlXHOYuuP0M9kFlwPHbTadEPs3uLik",
+    authDomain: "yenuflex202604.firebaseapp.com",
+    projectId: "yenuflex202604",
+    storageBucket: "yenuflex202604.firebasestorage.app",
+    messagingSenderId: "212388040580",
+    appId: "1:212388040580:web:cf887c6a74d99be56ad7d1",
+    databaseURL: "https://yenuflex202604-default-rtdb.firebaseio.com" // අනිවාර්යයි
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const cloudDB = getDatabase(app);
+  const dataRef = ref(cloudDB, 'yenuflex_data');
+
+  window.cloud_sync = function(data) {
+      set(dataRef, data);
+  };
+
+  // වෙනත් Device එකකින් දත්ත වෙනස් වූ විට එය ලබාගැනීම
+  onValue(dataRef, (snapshot) => {
+      const cloudData = snapshot.val();
+      // Main script එකේ function එක call කර db යාවත්කාලීන කිරීම (Scope Fix)
+      if (cloudData && typeof window.syncFromCloud === "function") {
+          window.syncFromCloud(cloudData);
+      }
+  });
+</script>
+    <meta charset="UTF-8">
+    <title>YENUFLEX ERP - PRO ADVANCED v6.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #2c3e50; --accent: #27ae60; --danger: #e74c3c; --info: #3498db; --light: #ecf0f1; --edit: #f39c12; --dark: #1a252f; --wa: #25d366; --tax: #8e44ad; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); margin: 0; padding: 15px; }
+        
+        /* අලුත් Login එක */
+        #login-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: #091921; display: flex; align-items: center; justify-content: center; z-index: 10000; font-family: 'Poppins', sans-serif; overflow: hidden; }
+        .bg-login-anim { position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: -1; }
+        .bg-login-anim .circle { position: absolute; background: linear-gradient(#00d2ff, #3a7bd5); border-radius: 50%; animation: animate 10s linear infinite; }
+        .bg-login-anim .circle:nth-child(1) { width: 200px; height: 200px; top: -50px; left: -50px; filter: blur(5px); }
+        .bg-login-anim .circle:nth-child(2) { width: 150px; height: 150px; bottom: -50px; right: -50px; background: linear-gradient(#ff0057, #e64a19); animation-delay: -5s; }
+        @keyframes animate { 0%, 100% { transform: translateY(-20px); } 50% { transform: translateY(20px); } }
+        .login-box { position: relative; width: 400px; padding: 40px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; box-shadow: 0 25px 45px rgba(0,0,0,0.2); color: #fff; opacity: 0; transform: scale(0.9); animation: fadeInLogin 0.8s ease-out forwards; text-align: center; }
+        @keyframes fadeInLogin { to { opacity: 1; transform: scale(1); } }
+        .login-box h2 { text-align: center; margin-bottom: 30px; letter-spacing: 2px; }
+        .input-group { position: relative; margin-bottom: 30px; text-align: left; }
+        .input-group input { width: 100%; padding: 10px 0; font-size: 16px; color: #fff; border: none; border-bottom: 1px solid #fff; outline: none; background: transparent; transition: 0.5s; margin-top: 0; box-sizing: border-box; }
+        .input-group label { position: absolute; top: 0; left: 0; padding: 10px 0; pointer-events: none; transition: 0.5s; color: rgba(255, 255, 255, 0.5); font-family: 'Poppins', sans-serif;}
+        .input-group input:focus ~ label, .input-group input:valid ~ label { top: -20px; left: 0; color: #00d2ff; font-size: 12px; }
+        .login-btn { width: 100%; background: #00d2ff; border: none; outline: none; padding: 10px; border-radius: 40px; cursor: pointer; font-size: 18px; font-weight: 600; color: #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: 0.3s; font-family: 'Poppins', sans-serif; }
+        .login-btn:hover { background: #fff; color: #00d2ff; transform: translateY(-3px); }
+
+        .container { max-width: 1600px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: none; }
+        .nav-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 20px; background: #dfe6e9; padding: 10px; border-radius: 10px; position: sticky; top: 0; z-index: 100; }
+        .nav-tabs button { padding: 12px 18px; border: none; background: #b2bec3; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 13px; transition: 0.3s; }
+        .nav-tabs button.active { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .tab-content { display: none; animation: fadeIn 0.4s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .box { background: #f9f9f9; padding: 20px; border-radius: 10px; border: 1px solid #ddd; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        input, select, textarea { padding: 12px; border: 1px solid #ccc; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 14px; margin-top: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: var(--primary); color: white; position: sticky; top: 0; }
+        tr:nth-child(even) { background: #f2f2f2; }
+        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+        .btn-save { background: var(--accent); width: 100%; font-size: 16px; margin-top: 10px; }
+        .btn-edit { background: var(--edit); }
+        .btn-del { background: var(--danger); }
+        .btn-info { background: var(--info); }
+        .btn-wa { background: var(--wa); }
+        .btn-pdf { background: #e74c3c; width: 100%; margin-top: 15px; }
+        .thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd; cursor: pointer; }
+        
+        #imgModal { display: none; position: fixed; z-index: 99999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); align-items: center; justify-content: center; cursor: zoom-out; }
+        #modalImg { max-width: 95%; max-height: 95%; border: 3px solid white; border-radius: 8px; }
+
+        .pagination-container { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px; background: #ecf0f1; padding: 12px; border-radius: 8px; font-weight: bold; color: var(--primary); border: 1px solid #bdc3c7; }
+        .pagination-container button { padding: 8px 18px; border: none; background: var(--primary); color: white; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.3s; font-size: 14px; }
+        .pagination-container button:hover:not(:disabled) { background: var(--dark); }
+        .pagination-container button:disabled { background: #bdc3c7; cursor: not-allowed; }
+
+        /* Payment Modal */
+        #payModalOverlay { display: none; position: fixed; z-index: 99999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; }
+        .pay-modal-box { background: white; padding: 30px; border-radius: 15px; width: 350px; text-align: left; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+
+        @media print { .no-print { display: none !important; } #invoice-print-area { display: block !important; width: 100%; } }
+    </style>
+</head>
+<body>
+
+<div id="imgModal" onclick="this.style.display='none'">
+    <img id="modalImg" src="">
+</div>
+
+<div id="payModalOverlay">
+    <div class="pay-modal-box">
+        <h3 style="color: var(--primary); margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">Record Payment</h3>
+        <input type="hidden" id="payModalIdx">
+        <input type="hidden" id="payModalType"> <label style="font-weight: bold; font-size: 13px; color: #555;">Payment Amount (Rs.):</label>
+        <input type="number" id="payModalAmt" placeholder="Amount (Rs.)" style="margin-bottom: 15px;">
+        
+        <label style="font-weight: bold; font-size: 13px; color: #555;">Payment Method:</label>
+        <select id="payModalMethod" onchange="togglePayModalOnline()" style="margin-bottom: 15px;">
+            <option value="Cash">Cash</option>
+            <option value="Online">Online Transfer</option>
+            <option value="Cheque">Cheque</option>
+        </select>
+
+        <input type="text" id="payModalBank" placeholder="Bank Name" style="display:none; margin-bottom: 15px;">
+        <input type="text" id="payModalAcc" placeholder="Account Number" style="display:none; margin-bottom: 15px;">
+        <input type="text" id="payModalSlip" placeholder="Slip Number" style="display:none; margin-bottom: 15px;">
+        <input type="text" id="payModalChkNo" placeholder="Cheque Number" style="display:none; margin-bottom: 15px;">
+        <label id="payModalChkDateLabel" style="font-weight: bold; font-size: 13px; color: #555; display:none;">Cheque Date:</label>
+        <input type="date" id="payModalChkDate" style="display:none; margin-bottom: 15px;">
+
+        <label style="font-weight: bold; font-size: 13px; color: #555;">Payment Date:</label>
+        <input type="date" id="payModalDate" style="margin-bottom: 20px;">
+
+        <button class="btn btn-save" onclick="confirmPay()">SUBMIT PAYMENT</button>
+        <button class="btn btn-del" style="width: 100%; margin-top: 10px;" onclick="closePayModal()">CANCEL</button>
+    </div>
+</div>
+
+<div id="retModalOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99999; align-items:center; justify-content:center;">
+    <div style="background:white; padding:30px; border-radius:15px; width:400px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+        <h3 style="color:var(--primary); margin-top:0; border-bottom:2px solid var(--primary); padding-bottom:10px;">Return Specific Item</h3>
+        <input type="hidden" id="retModalIdx">
+        
+        <label style="font-weight:bold; font-size:13px; color:#555;">Select Item to Return:</label>
+        <select id="retModalItem" style="margin-bottom:15px;" onchange="updateRetModalMaxQty()"></select>
+
+        <label style="font-weight:bold; font-size:13px; color:#555;">Quantity to Return:</label>
+        <input type="number" id="retModalQty" placeholder="Qty" style="margin-bottom:15px;" min="1">
+
+        <label style="font-weight:bold; font-size:13px; color:#555;">Reason for Return:</label>
+        <input type="text" id="retModalReason" placeholder="Reason for return" style="margin-bottom:15px;">
+
+        <label style="font-weight:bold; font-size:13px; color:#555;">Return Date:</label>
+        <input type="date" id="retModalDate" style="margin-bottom:20px;">
+
+        <button class="btn btn-save" onclick="confirmReturn()">SUBMIT RETURN</button>
+        <button class="btn btn-del" style="width:100%; margin-top:10px;" onclick="closeRetModal()">CANCEL</button>
+    </div>
+</div>
+
+<div id="login-overlay">
+    <div class="bg-login-anim">
+        <div class="circle"></div>
+        <div class="circle"></div>
+    </div>
+    <div class="login-box">
+        <h2>LOGIN</h2>
+        <form onsubmit="event.preventDefault(); checkLogin();">
+            <div class="input-group">
+                <input type="text" id="logUser" required>
+                <label>Username</label>
+            </div>
+            <div class="input-group">
+                <input type="password" id="logPass" required>
+                <label>Password</label>
+            </div>
+            <button type="submit" class="login-btn">Log In</button>
+        </form>
+    </div>
+</div>
+
+<div class="container no-print" id="main-app">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--primary); padding-bottom: 10px; margin-bottom: 20px;">
+        <h2 style="margin:0; color:var(--primary);">YENUFLEX RUBBER PRODUCTS <small style="font-size: 12px; color: #666;">PRO ADVANCED v6.0</small></h2>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-info" onclick="exportData()">💾 BACKUP</button>
+            <button class="btn btn-edit" onclick="document.getElementById('importFile').click()">📂 RESTORE</button>
+            <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+            <button class="btn btn-del" onclick="resetSystemData()" style="background: #c0392b;">🔥 RESET ALL</button>
+            <button class="btn btn-del" onclick="logout()">🚪 LOGOUT</button>
+        </div>
+    </div>
+
+    <div class="nav-tabs">
+        <button onclick="changeTab('shops')" id="t-shops">Register Shops</button>
+        <button onclick="changeTab('items')" id="t-items">Item Management</button>
+        <button onclick="changeTab('stock')" id="t-stock">Inventory / Stock</button>
+        <button onclick="changeTab('orders')" id="t-orders">Pending Orders</button>
+        <button onclick="changeTab('finished')" id="t-finished">Finished Orders</button>
+        <button onclick="changeTab('pending-pay')" id="t-pending-pay" class="active">Pending Payments</button>
+        <button onclick="changeTab('overdue')" id="t-overdue" style="background:#e74c3c; color:white;">🚨 Overdue (>3W)</button>
+        <button onclick="changeTab('finished-pay')" id="t-finished-pay">Payment Finished</button>
+        <button onclick="changeTab('ebook')" id="t-ebook" style="background:#2980b9; color:white;">📖 View e-Book</button>
+        <button onclick="changeTab('returns')" id="t-returns">Return Items</button>
+        <button onclick="changeTab('deleted')" id="t-deleted">Deleted Records</button>
+        <button onclick="changeTab('progress')" id="t-progress">Business Progress</button>
+        <button onclick="changeTab('progress2')" id="t-progress2" style="background: #8e44ad; color: white;">Profit Progress</button>
+        <button onclick="changeTab('tax')" id="t-tax" style="background:var(--tax); color:white;">Tax Payments</button>
+        <button onclick="changeTab('messages')" id="t-messages" style="background:var(--wa); color:white;">💬 WhatsApp & SMS</button>
+    </div>
+
+    <div id="shops" class="tab-content">
+        <div class="box">
+            <h3 id="shTitle">Register/Update Shop</h3>
+            <input type="hidden" id="editShIdx" value="-1">
+            <div class="grid">
+                <input type="text" id="shName" placeholder="Shop Name">
+                <input type="text" id="shLoc" placeholder="Location">
+                <input type="text" id="shPh1" placeholder="WhatsApp Number">
+                <input type="text" id="shPh2" placeholder="Normal Number">
+                <textarea id="shNotes" placeholder="Special Notes/Route Information..." style="grid-column: span 2; height: 45px;"></textarea>
+                <div>Shop Image: <input type="file" onchange="compressImg(this, 'shPrev')"><img id="shPrev" style="width:50px; display:none; margin-top:5px; cursor:pointer;" onclick="openLightbox(this.src)"></div>
+            </div>
+            <button class="btn btn-save" onclick="saveShop()" id="shBtn">SAVE SHOP DATA</button>
+        </div>
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 15px; align-items: center;">
+            <strong>🔄 Sort by Shop Name:</strong>
+            <select id="sortShops" onchange="filterRender('shops')">
+                <option value="az">A - Z</option>
+                <option value="za">Z - A</option>
+            </select>
+        </div>
+        <button class="btn btn-pdf" onclick="downloadPDF('tbl-shops', 'Registered Shops Report')">📄 DOWNLOAD SHOPS (PDF)</button>
+        <table id="tbl-shops"><thead><tr><th style="width:70px">Image</th><th>Shop Name</th><th>Location</th><th>Contact Details (WA / Normal)</th><th>Notes</th><th>Action</th></tr></thead><tbody id="shopBody"></tbody></table>
+        <div id="pg-shops"></div>
+    </div>
+
+    <div id="items" class="tab-content">
+        <div class="box">
+            <h3 id="itTitle">Item Registration</h3>
+            <input type="hidden" id="editItIdx" value="-1">
+            <div class="grid">
+                <input type="text" id="itCode" placeholder="Item Code">
+                <input type="text" id="itPartCode" placeholder="Part Code">
+                <input type="text" id="itName" placeholder="Item Name">
+                <input type="number" id="itCost" placeholder="Production Cost (Rs.)">
+                <input type="number" id="itPrice" placeholder="Wholesale Price (Rs.)">
+                <input type="number" id="itStock" placeholder="Initial Stock Qty">
+                <div>Item Photo: <input type="file" onchange="compressImg(this, 'itPrev')"><img id="itPrev" style="width:50px; display:none; margin-top:5px; cursor:pointer;" onclick="openLightbox(this.src)"></div>
+            </div>
+            <button class="btn btn-save" onclick="saveItem()" id="itBtn">SAVE ITEM DATA</button>
+        </div>
+        <table><thead><tr><th style="width:70px">Image</th><th>Code / Part</th><th>Item Name</th><th>Cost</th><th>Price</th><th>Action</th></tr></thead><tbody id="itemBody"></tbody></table>
+        <div id="pg-items"></div>
+    </div>
+
+    <div id="stock" class="tab-content">
+        <div class="box">
+            <h3>Manual Stock Entry</h3>
+            <div class="grid">
+                <select id="stItemSelect"></select>
+                <input type="number" id="stQty" placeholder="Add Quantity (+)">
+                <button class="btn btn-info" onclick="updateStockManual()">ADD TO STOCK</button>
+            </div>
+        </div>
+        <table><thead><tr><th>Item Name</th><th>Total Stock (Initial+Added)</th><th>Items Sold</th><th>Returned</th><th>Current Available</th></tr></thead><tbody id="stockBody"></tbody></table>
+        <div id="pg-stock"></div>
+    </div>
+
+    <div id="orders" class="tab-content">
+        <div class="box">
+            <h3>Place New Factory Order</h3>
+            <div class="grid">
+                <select id="ordShopSelect"></select>
+                <div>Order Date: <input type="date" id="ordDate"></div>
+                <div>Target Date: <input type="date" id="ordTargetDate"></div>
+                <input type="number" id="ordAdv" placeholder="Advance Received">
+                <div>Advance Method: <select id="ordAdvMethod" onchange="toggleOrdAdvMethod()"><option value="Cash">Cash</option><option value="Online">Online</option><option value="Cheque">Cheque</option></select></div>
+                <div>Advance Date: <input type="date" id="ordAdvDate"></div>
+                <input type="text" id="ordChkNo" placeholder="Cheque Number" style="display:none;">
+                <input type="date" id="ordChkDate" style="display:none; width:100%;">
+            </div>
+            <div id="ordItemsList" style="margin-top:20px; border-top: 1px solid #ddd; padding-top: 15px;"></div>
+            <button class="btn btn-info" onclick="addOrderRow()">+ Add Item Row</button>
+            <button class="btn btn-save" onclick="saveOrder()">CONFIRM & SUBMIT ORDER</button>
+        </div>
+        <button class="btn btn-pdf" onclick="downloadPDF('tbl-orders', 'Pending Orders Report')">📄 DOWNLOAD PENDING ORDERS (PDF)</button>
+        <table id="tbl-orders"><thead><tr><th>Order Date</th><th>Target Date</th><th>Shop</th><th>Order Details</th><th>Advance</th><th>Action</th></tr></thead><tbody id="orderBody"></tbody></table>
+        <div id="pg-orders"></div>
+    </div>
+
+    <div id="finished" class="tab-content">
+        <div class="box">
+             🔍 Filter by Shop: <select id="fFinShop" onchange="filterRender('finOrders')"></select>
+        </div>
+        <table><thead><tr><th>Shop</th><th>Items (Price x Qty)</th><th>Total Value</th><th>Delivery Status</th><th>Invoice Action</th></tr></thead><tbody id="finBody"></tbody></table>
+        <div id="pg-finOrders"></div>
+    </div>
+
+    <div id="pending-pay" class="tab-content active">
+        <div class="box" id="inv-creator" style="display:none; border: 2px solid var(--accent);">
+            <h3>Finalize Invoice & Payment</h3>
+            <div class="grid">
+                <div>Invoice #: <input type="text" id="salInv" readonly></div>
+                <div>Shop: <select id="salShopSelect"></select></div>
+                <div>Payment Received Now: <input type="number" id="salPay" placeholder="Amount (Rs.)"></div>
+                <div>Method: <select id="salPayMethod" onchange="toggleSalPayMethod()"><option value="Cash">Cash</option><option value="Online">Online</option><option value="Cheque">Cheque</option></select></div>
+                <div>Date: <input type="date" id="salDate"></div>
+                <input type="text" id="salChkNo" placeholder="Cheque Number" style="display:none;">
+                <input type="date" id="salChkDate" style="display:none;">
+            </div>
+            <button class="btn btn-save" onclick="processInvoiceFinal()">CONFIRM SALE & PRINT INVOICE</button>
+        </div>
+
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+            <strong>🔍 Filter:</strong>
+            <select id="fShop" onchange="filterRender('penPay')"></select>
+            <strong>🔄 Sort:</strong>
+            <select id="sortPenPay" onchange="filterRender('penPay')">
+                <option value="date-desc">Date: Newest First</option>
+                <option value="date-asc">Date: Oldest First</option>
+                <option value="inv-az">Invoice No: A - Z</option>
+                <option value="inv-za">Invoice No: Z - A</option>
+                <option value="shop-az">Shop Name: A - Z</option>
+                <option value="shop-za">Shop Name: Z - A</option>
+            </select>
+            <button class="btn btn-info" onclick="resetFilters()">Reset All</button>
+        </div>
+        <button class="btn btn-pdf" onclick="downloadPDF('tbl-pending-pay', 'Pending Payments Report')">📄 DOWNLOAD PENDING PAYMENTS (PDF)</button>
+        <table id="tbl-pending-pay"><thead><tr><th>Inv No</th><th>Date</th><th>Shop</th><th>Description</th><th>Grand Total</th><th>Paid</th><th>Balance</th><th>Action</th></tr></thead><tbody id="penPayBody"></tbody></table>
+        <div id="pg-penPay"></div>
+    </div>
+
+    <div id="overdue" class="tab-content">
+        <div class="box" style="border-left: 5px solid var(--danger);">
+            <h3 style="color: var(--danger); margin:0;">🚨 Payments Overdue by More Than 3 Weeks</h3>
+            <p style="font-size: 13px; color:#555; margin-top:5px;">Invoices shown here have been pending for over 21 days since the sale date.</p>
+        </div>
+        <div style="background: #fadbd8; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 15px; align-items: center;">
+            <strong>🔍 Filter by Shop:</strong>
+            <select id="fOverdueShop" onchange="filterRender('overdue')"></select>
+            <button class="btn btn-info" onclick="resetFilters()">Reset Filter</button>
+        </div>
+        <button class="btn btn-pdf" onclick="downloadPDF('tbl-overdue', 'Overdue Payments Report')">📄 DOWNLOAD OVERDUE PAYMENTS (PDF)</button>
+        <table id="tbl-overdue"><thead><tr><th>Inv No</th><th>Sale Date</th><th>Shop</th><th>Items Sold</th><th>Total Value</th><th>Paid So Far</th><th>Remaining Balance</th><th>Actions</th></tr></thead><tbody id="overdueBody"></tbody></table>
+        <div id="pg-overdue"></div>
+    </div>
+
+    <div id="finished-pay" class="tab-content">
+        <div class="box" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+             <strong>🔍 Filter:</strong> <select id="fFinPayShop" onchange="filterRender('finPay')"></select>
+             <strong>🔄 Sort:</strong>
+             <select id="sortFinPay" onchange="filterRender('finPay')">
+                 <option value="date-desc">Date: Newest First</option>
+                 <option value="date-asc">Date: Oldest First</option>
+                 <option value="inv-az">Invoice No: A - Z</option>
+                 <option value="inv-za">Invoice No: Z - A</option>
+                 <option value="shop-az">Shop Name: A - Z</option>
+                 <option value="shop-za">Shop Name: Z - A</option>
+             </select>
+        </div>
+        <button class="btn btn-pdf" onclick="downloadPDF('tbl-finished-pay', 'Finished Payments Report')">📄 DOWNLOAD FINISHED PAYMENTS (PDF)</button>
+        <table id="tbl-finished-pay"><thead><tr><th>Inv No</th><th>Date</th><th>Shop</th><th>Item Description</th><th>Total Value</th><th>Status</th><th>Action</th></tr></thead><tbody id="finPayBody"></tbody></table>
+        <div id="pg-finPay"></div>
+    </div>
+
+    <div id="ebook" class="tab-content">
+        <div class="grid">
+            <div class="box" style="text-align:center; background: #d5f5e3;"><h3>Total Income (Inwards)</h3><h2 id="ebTotalIn" style="color:var(--accent);">Rs. 0</h2></div>
+            <div class="box" style="text-align:center; background: #fadbd8;"><h3>Total Expenses (Outwards)</h3><h2 id="ebTotalOut" style="color:var(--danger);">Rs. 0</h2></div>
+            <div class="box" style="text-align:center; background: #e8f8f5;"><h3>Overall Balance</h3><h2 id="ebBalance" style="color:var(--info);">Rs. 0</h2></div>
+        </div>
+
+        <div class="box" style="border: 2px solid var(--info);">
+            <h3>Record New Withdrawal / Business Expense</h3>
+            <div class="grid">
+                <div>Type: <select id="ebType"><option value="Withdrawal">Personal Withdrawal</option><option value="Expense">Business Expense</option></select></div>
+                <div>Method: <select id="ebMethod" onchange="toggleEbOnline()"><option value="Cash">Cash</option><option value="Online">Online Transfer</option><option value="Cheque">Cheque</option></select></div>
+                <div>Date: <input type="date" id="ebDate"></div>
+                <input type="text" id="ebPayee" placeholder="To Whom (Payee / Person)">
+                <input type="number" id="ebAmt" placeholder="Amount (Rs.)">
+                <input type="text" id="ebDesc" placeholder="Description / Purpose" style="grid-column: span 2;">
+                <input type="text" id="ebBank" placeholder="Bank Name" style="display:none;">
+                <input type="text" id="ebAcc" placeholder="Account Number" style="display:none;">
+                <input type="text" id="ebSlip" placeholder="Paid Slip Number" style="display:none;">
+                <input type="text" id="ebChkNo" placeholder="Cheque Number" style="display:none;">
+                <input type="date" id="ebChkDate" style="display:none;">
+            </div>
+            <button class="btn btn-save" style="background:var(--info);" onclick="saveTransaction()">SAVE TRANSACTION TO LEDGER</button>
+        </div>
+
+        <div class="box" style="background: #e3f2fd; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+             <strong>🔍 Filter Ledger:</strong> 
+             <select id="fEbType" onchange="filterRender('ebook')">
+                 <option value="">All Transactions</option>
+                 <option value="Income">Income Only</option>
+                 <option value="Expense">Expenses/Withdrawals Only</option>
+             </select>
+             <select id="fEbMethod" onchange="filterRender('ebook')">
+                 <option value="">All Methods</option>
+                 <option value="Cash">Cash Only</option>
+                 <option value="Online">Online Only</option>
+                 <option value="Cheque">Cheque Only</option>
+             </select>
+             <select id="fEbPayee" onchange="filterRender('ebook')">
+                 <option value="">All Shops & Payees</option>
+             </select>
+             <button class="btn btn-info" onclick="resetFilters()">Reset All</button>
+        </div>
+
+        <button class="btn btn-pdf" onclick="downloadPDF('tbl-ebook', 'eBook Bank Summary Report')">📄 DOWNLOAD E-BOOK LEDGER (PDF)</button>
+        <table id="tbl-ebook">
+            <thead><tr><th>Date</th><th>Shop / Payee</th><th>Description</th><th>Method</th><th>Bank / Cheque Details</th><th>Income (Rs)</th><th>Expense (Rs)</th><th>Running Balance</th></tr></thead>
+            <tbody id="ebookBody"></tbody>
+        </table>
+        <div id="pg-ebook"></div>
+    </div>
+
+    <div id="returns" class="tab-content">
+        <table><thead><tr><th>Date</th><th>Shop</th><th>Inv Ref</th><th>Returned Item(s)</th><th>Reason</th><th>Action</th></tr></thead><tbody id="retBody"></tbody></table>
+        <div id="pg-ret"></div>
+    </div>
+
+    <div id="deleted" class="tab-content">
+        <table><thead><tr><th>Category</th><th>Reference</th><th>Deleted On</th><th>Action</th></tr></thead><tbody id="deletedBody"></tbody></table>
+        <div id="pg-del"></div>
+    </div>
+
+    <div id="progress" class="tab-content">
+        <div class="grid">
+            <div class="box" style="text-align:center;"><h3>Monthly Sales</h3><h2 id="statMonthly" style="color:var(--accent);">Rs. 0</h2></div>
+            <div class="box" style="text-align:center;"><h3>Yearly Sales</h3><h2 id="statYearly" style="color:var(--accent);">Rs. 0</h2></div>
+            <div class="box" style="text-align:center;"><h3>Total Advances</h3><h2 id="statAdv" style="color:var(--info);">Rs. 0</h2></div>
+        </div>
+        <div class="box">
+            <h3>Item-wise Sales Performance</h3>
+            <div id="itemStatsGrid" class="grid"></div>
+        </div>
+    </div>
+
+    <div id="progress2" class="tab-content">
+        <div class="grid">
+            <div class="box" style="text-align:center; background: #d5f5e3;"><h3>Estimated Monthly Profit</h3><h2 id="p2Monthly" style="color:var(--accent);">Rs. 0</h2></div>
+            <div class="box" style="text-align:center; background: #d5f5e3;"><h3>Estimated Yearly Profit</h3><h2 id="p2Yearly" style="color:var(--accent);">Rs. 0</h2></div>
+        </div>
+        
+        <div class="box">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>Monthly Profit Chart</h3>
+                <div>Select Year: <select id="profitYearSelect" onchange="renderProfitChart()"></select></div>
+            </div>
+            <canvas id="profitChartCanvas" style="max-height: 350px; margin-top:15px;"></canvas>
+        </div>
+
+        <div class="box">
+            <h3>Item-wise Profit Summary</h3>
+            <div id="p2ItemStatsGrid" class="grid"></div>
+        </div>
+
+        <div class="box">
+            <h3>Item-wise Profit Analysis (Table view)</h3>
+            <button class="btn btn-pdf" onclick="downloadPDF('tbl-profit', 'Profit Progress Report')">📄 DOWNLOAD PROFIT PROGRESS (PDF)</button>
+            <table id="tbl-profit">
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Qty Sold</th>
+                        <th>Total Revenue</th>
+                        <th>Total Cost</th>
+                        <th>Total Profit</th>
+                    </tr>
+                </thead>
+                <tbody id="p2ItemBody"></tbody>
+            </table>
+            <div id="pg-profit"></div>
+        </div>
+    </div>
+
+    <div id="tax" class="tab-content">
+        <div class="box">
+            <h3 id="taxTitle">Add/Update Tax Payment</h3>
+            <input type="hidden" id="editTaxIdx" value="-1">
+            <div class="grid">
+                <div>Year: <select id="taxYear"></select></div>
+                <input type="number" id="taxAmt" placeholder="Amount Paid (Rs.)">
+                <div>Payment Date: <input type="date" id="taxDate"></div>
+                <input type="text" id="taxSlip" placeholder="Slip Number">
+                <div>Slip Image: <input type="file" onchange="compressImg(this, 'taxPrev')"><img id="taxPrev" style="width:50px; display:none; margin-top:5px; cursor:pointer;" onclick="openLightbox(this.src)"></div>
+            </div>
+            <button class="btn btn-save" style="background:var(--tax);" onclick="saveTax()" id="taxBtn">SAVE TAX PAYMENT</button>
+        </div>
+        <div class="box">
+            🔍 Filter by Year: 
+            <select id="fTaxYear" onchange="filterRender('tax')"></select>
+        </div>
+        <button class="btn btn-pdf" onclick="downloadPDF('tbl-tax', 'Tax Payments Report')">📄 DOWNLOAD TAX PAYMENTS (PDF)</button>
+        <table id="tbl-tax">
+            <thead><tr><th>Year</th><th>Date</th><th>Slip Number</th><th>Amount Paid</th><th>Slip Image</th><th>Action</th></tr></thead>
+            <tbody id="taxBody"></tbody>
+        </table>
+        <div id="pg-tax"></div>
+    </div>
+
+    <div id="messages" class="tab-content">
+        <div class="grid" style="gap: 30px;">
+            <div class="box" style="margin-bottom: 0;">
+                <h3>📱 Send Quick SMS</h3>
+                <label>Select Shop:</label>
+                <select id="msgShopSelect" onchange="updateMsgNumbers()"></select>
+                <label>Number:</label>
+                <select id="msgNumSelect"></select>
+                <textarea id="smsBody" placeholder="පණිවිඩය මෙහි ලියන්න..." style="height:80px;"></textarea>
+                <button class="btn btn-info" style="width:100%; margin-top:10px;" onclick="sendSMS()">SEND VIA SIM</button>
+            </div>
+            <div class="box" style="border-left: 5px solid var(--wa); margin-bottom: 0;">
+                <h3>🟢 WhatsApp Invoice</h3>
+                <label>Select Shop:</label>
+                <select id="waShopSelect" onchange="updateWaInvoices()"></select>
+                <label>Select Invoice No:</label>
+                <select id="waInvSelect"></select>
+                <button class="btn btn-wa" style="width:100%; margin-top:20px;" onclick="sendWhatsApp()">SEND TO WHATSAPP</button>
+            </div>
+        </div>
+
+        <div class="box" style="border-left: 5px solid #f39c12; margin-top: 30px;">
+            <h3>📢 Bulk WhatsApp Broadcast (සියලුම කඩවල් සඳහා)</h3>
+            <p style="font-size: 13px; color: #555;">විශේෂ දැනුම්දීම්, අලුත් බඩු ගැන විස්තර සහ සුබපැතුම් එකවර සියලුම කඩවල් වෙත WhatsApp මගින් යැවීමට මෙය භාවිතා කරන්න. (Register කර ඇති WhatsApp අංකය භාවිතා වේ)</p>
+            <textarea id="bulkMsgBody" placeholder="පණිවිඩය මෙහි ලියන්න..." style="height:100px;"></textarea>
+            
+            <div style="margin-top:15px; padding: 10px; background: #fff; border: 1px dashed #ccc; border-radius: 5px;">
+                <label style="font-size:13px; font-weight:bold; color:var(--primary);">Attach File / Image (Optional):</label><br>
+                <input type="file" id="bulkWaFile" style="margin-top:5px;">
+                <p style="font-size:11px; color:#e74c3c; margin:5px 0 0 0;">* සටහන: WhatsApp Web ආරක්ෂක හේතූන් මත ස්වයංක්‍රීයව File/Image යැවිය නොහැක. එබැවින් WhatsApp Window එක Open වූ පසු මෙම File එක අතින් (Manual) Attach කර Send කරන්න.</p>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <button class="btn btn-wa" style="width: 100%; padding: 15px; font-size: 16px;" onclick="startBulkWA()">🟢 START WA BROADCAST (සියල්ලටම WA)</button>
+            </div>
+
+            <div id="waBroadcastQueue" style="display: none; margin-top: 20px; padding: 15px; background: #e8f8f5; border-radius: 8px; border: 1px solid #25d366;">
+                </div>
+        </div>
+        </div>
+</div>
+
+<div id="invoice-print-area" style="display:none; padding: 20px; font-family: sans-serif; color: black; box-sizing: border-box;">
+    <div style="border: 2px solid #000; padding: 20px; min-height: 800px; box-sizing: border-box;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px;">
+            <div style="width: 250px; text-align: left;">
+                <img id="inv-logo" src="" style="max-height: 120px; width: 100%; object-fit: contain;">
+            </div>
+            <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align:center; padding: 0 10px;">
+                <h1 style="margin:0; font-size: 26px; font-weight: 900; text-align: center;">YENUFLEX RUBBER PRODUCTS</h1>
+                <p style="margin:5px; font-size: 15px; text-align: center;">No 388/5, Degawaththa, Dompe.</p>
+                <p style="margin:2px 0 5px 0; font-weight: bold; font-size: 15px; text-align: center;">Tel: 071 59 70 549 | 071 70 96 503</p>
+                <p style="font-size: 14px; margin:0; text-align: center;">Reg No: WP/GAM/DM/2024/00425</p>
+            </div>
+            <div style="width: 100px; text-align: right;">
+                <img id="inv-qr" src="" style="width: 100px; height: 100px; object-fit: contain;">
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content: space-between; margin: 20px 0;">
+            <div>
+                <strong>BILL TO:</strong> <br>
+                <span id="p-shop-name" style="font-size:20px; font-weight:900;"></span><br>
+                <span id="p-shop-addr"></span><br>
+                <span id="p-shop-tel"></span>
+            </div>
+            <div style="text-align:right;">
+                <strong>INVOICE:</strong> <span id="p-inv" style="font-weight:900;"></span><br>
+                <strong>DATE:</strong> <span id="p-date"></span>
+            </div>
+        </div>
+
+        <table style="width:100%; border-collapse: collapse; border: 2px solid #000; margin-bottom: 20px;">
+            <thead>
+                <tr style="background-color: #e0e0e0; border-bottom: 2px solid #000;">
+                    <th style="border:2px solid #000; color: #000; padding:15px; text-align:left; font-size: 16px; font-weight: 900; text-transform: uppercase;">Item Description</th>
+                    <th style="border:2px solid #000; color: #000; padding:15px; width:150px; text-align:center; font-size: 16px; font-weight: 900; text-transform: uppercase;">Price x Qty</th>
+                    <th style="border:2px solid #000; color: #000; padding:15px; width:150px; text-align:right; font-size: 16px; font-weight: 900; text-transform: uppercase;">Amount</th>
+                </tr>
+            </thead>
+            <tbody id="p-body" style="font-size: 15px; color: #000;"></tbody>
+        </table>
+
+        <div style="text-align:right; margin-top:20px; font-size: 18px;">
+            <p>Sub Total: Rs. <span id="p-total"></span></p>
+            <p>Advance (<span id="p-adv-date"></span>): Rs. <span id="p-adv"></span></p>
+            <p>Paid Today: Rs. <span id="p-pay"></span></p>
+            <h2 style="border-top: 2px solid #000; display: inline-block; padding-top: 5px; color: red; font-weight: 900;">Balance Due: <span id="p-bal"></span></h2>
+        </div>
+        
+        <div style="margin-top: 50px; display: flex; justify-content: space-between;">
+            <div style="border-top: 1px solid #000; width: 200px; text-align: center;"><p>Customer Signature</p></div>
+            <div style="border-top: 1px solid #000; width: 200px; text-align: center;"><p>Authorized By</p></div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // =========================================================================
+    const LOGO_BASE64 = ""; 
+    const QR_BASE64 = ""; 
+    // =========================================================================
+
+    // Load initial data from LocalStorage
+    let db = JSON.parse(localStorage.getItem('YENUFLEX_ERP_V6')) || { 
+        shops: [], items: [], orders: [], sales: [], returns: [], deleted: [], tax: [], transactions: [] 
+    };
+    
+    // Ensure arrays exist so script doesn't crash on old data
+    db.shops = db.shops || [];
+    db.items = db.items || [];
+    db.orders = db.orders || [];
+    db.sales = db.sales || [];
+    db.returns = db.returns || [];
+    db.deleted = db.deleted || [];
+    db.tax = db.tax || [];
+    db.transactions = db.transactions || [];
+
+    let tempImg = "";
+    let activeInvOrder = null;
+    let profitChartInstance = null; 
+
+    // Pagination
+    let curPage = { shops: 1, items: 1, stock: 1, orders: 1, finOrders: 1, penPay: 1, finPay: 1, ret: 1, del: 1, tax: 1, profit: 1, ebook: 1, overdue: 1 };
+    const PAGE_LIMIT = 10;
+
+    let yrHtml = "";
+    let currentYr = new Date().getFullYear();
+    for(let y=2024; y<=2040; y++) yrHtml += `<option value="${y}" ${y === currentYr ? 'selected' : ''}>${y}</option>`;
+    document.getElementById('taxYear').innerHTML = yrHtml;
+    document.getElementById('fTaxYear').innerHTML = `<option value="">-- All Years --</option>` + yrHtml;
+    document.getElementById('profitYearSelect').innerHTML = yrHtml; 
+
+    function downloadPDF(tableId, title) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('landscape'); 
+        doc.text(title, 14, 15);
+        doc.autoTable({ html: '#' + tableId, startY: 20, theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [44, 62, 80] } });
+        doc.save(title.replace(/\s+/g, '_') + '.pdf');
+    }
+
+    function openLightbox(src) {
+        if(!src) return;
+        document.getElementById('modalImg').src = src;
+        document.getElementById('imgModal').style.display = 'flex';
+    }
+
+    // ==========================================
+    // AUTO LOGOUT / INACTIVITY TIMER (10 Mins)
+    // ==========================================
+    let idleTimeout;
+    const idleTimeLimit = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+    function logoutUser() {
+        sessionStorage.removeItem('isLoggedIn');
+        document.getElementById('login-overlay').style.display = 'flex';
+        document.getElementById('main-app').style.display = 'none';
+        alert("ඔබ විනාඩි 10ක් කිසිවක් නොකළ නිසා ආරක්ෂාවට Auto Logout විය. කරුණාකර නැවත Login වන්න.");
+    }
+
+    function resetIdleTimer() {
+        // Only run timer if user is currently logged in
+        if(sessionStorage.getItem('isLoggedIn') === 'true') {
+            clearTimeout(idleTimeout);
+            idleTimeout = setTimeout(logoutUser, idleTimeLimit);
+        }
+    }
+
+    // User actions that reset the timer
+    ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => 
+        document.addEventListener(evt, resetIdleTimer, true)
+    );
+    // ==========================================
+
+    function checkLogin() {
+        if(document.getElementById('logUser').value === "admin" && document.getElementById('logPass').value === "123") {
+            sessionStorage.setItem('isLoggedIn', 'true'); // sessionStorage used here!
+            document.getElementById('login-overlay').style.display = 'none'; 
+            document.getElementById('main-app').style.display = 'block'; 
+            document.getElementById('logUser').value = ""; 
+            document.getElementById('logPass').value = "";
+            resetIdleTimer(); // Start the timer
+            render();
+        } else { alert("Error: Unauthorized Access."); }
+    }
+    
+    function logout() { 
+        sessionStorage.removeItem('isLoggedIn'); 
+        location.reload(); 
+    }
+    
+    // Auto Save & Real-time Cloud Sync
+    function sync() { 
+        localStorage.setItem('YENUFLEX_ERP_V6', JSON.stringify(db)); 
+        if (typeof window.cloud_sync === "function") {
+            window.cloud_sync(db); // Push to Firebase immediately
+        }
+        render(); 
+    }
+
+    // මෙම Function එක මගින් Firebase හරහා එන දත්ත Local System එකට Update කර Refresh කරයි (Multi-Device Sync Fix)
+    window.syncFromCloud = function(cloudData) {
+        if(cloudData) {
+            db = cloudData;
+            db.shops = db.shops || [];
+            db.items = db.items || [];
+            db.orders = db.orders || [];
+            db.sales = db.sales || [];
+            db.returns = db.returns || [];
+            db.deleted = db.deleted || [];
+            db.tax = db.tax || [];
+            db.transactions = db.transactions || [];
+            
+            localStorage.setItem('YENUFLEX_ERP_V6', JSON.stringify(db));
+            if (typeof render === "function") render(); 
+        }
+    };
+
+    // --- PASSWORD PROTECTED RESET SYSTEM ---
+    function resetSystemData() {
+        const pwd = prompt("අවධානයයි: පද්ධතිය සම්පූර්ණයෙන්ම Reset කිරීමට මුරපදය (Password) ලබා දෙන්න:");
+        if (pwd === null) return; // User clicked cancel
+        
+        if (pwd === "YENU@123") {
+            db = { shops: [], items: [], orders: [], sales: [], returns: [], deleted: [], tax: [], transactions: [] };
+            localStorage.removeItem('YENUFLEX_ERP_V6'); 
+            sync();
+            alert("System Data Reset Successfully!");
+        } else {
+            alert("Error Password! පද්ධතිය Reset කිරීම ප්‍රතික්ෂේප කර ඇත.");
+        }
+    }
+    // ----------------------------------------
+
+    function compressImg(el, pId) {
+        const file = el.files[0]; 
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 600; const MAX_HEIGHT = 600;
+                let width = img.width; let height = img.height;
+                if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } 
+                else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
+                canvas.width = width; canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                tempImg = canvas.toDataURL('image/jpeg', 0.6); 
+                document.getElementById(pId).src = tempImg; document.getElementById(pId).style.display='block';
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function changeTab(id) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.getElementById('t-'+id).classList.add('active');
+        if(id === 'progress2') renderProfitChart(); 
+    }
+
+
+    function saveShop() {
+        const idx = parseInt(document.getElementById('editShIdx').value);
+        const obj = { name: document.getElementById('shName').value, loc: document.getElementById('shLoc').value, p1: document.getElementById('shPh1').value, p2: document.getElementById('shPh2').value, notes: document.getElementById('shNotes').value, img: tempImg || (idx > -1 ? db.shops[idx].img : "") };
+        if(!obj.name) return alert("Shop Name Required");
+        if(idx === -1) db.shops.push(obj); else db.shops[idx] = obj;
+        clearShopForm(); sync();
+    }
+    function editShop(i) {
+        const s = db.shops[i]; document.getElementById('editShIdx').value = i;
+        document.getElementById('shName').value = s.name; document.getElementById('shLoc').value = s.loc;
+        document.getElementById('shPh1').value = s.p1; document.getElementById('shPh2').value = s.p2;
+        document.getElementById('shNotes').value = s.notes; document.getElementById('shPrev').src = s.img;
+        document.getElementById('shPrev').style.display = s.img ? 'block' : 'none'; 
+        document.getElementById('shBtn').innerText = "UPDATE SHOP DATA"; window.scrollTo(0,0);
+    }
+    function deleteShop(i) { if(confirm("Delete Shop?")) { db.deleted.push({ type: 'Shop', ref: db.shops[i].name, date: new Date().toLocaleString(), data: db.shops[i] }); db.shops.splice(i, 1); sync(); } }
+    function clearShopForm() { document.getElementById('editShIdx').value = "-1"; ['shName','shLoc','shPh1','shPh2','shNotes'].forEach(id => document.getElementById(id).value = ""); document.getElementById('shPrev').style.display='none'; tempImg=""; document.getElementById('shBtn').innerText = "SAVE SHOP DATA"; const f = document.querySelector('#shops input[type="file"]'); if(f) f.value=""; }
+
+    function saveItem() {
+        const idx = parseInt(document.getElementById('editItIdx').value);
+        const it = { code: document.getElementById('itCode').value, partCode: document.getElementById('itPartCode').value, name: document.getElementById('itName').value, cost: parseFloat(document.getElementById('itCost').value||0), price: parseFloat(document.getElementById('itPrice').value||0), stock: parseFloat(document.getElementById('itStock').value||0), img: tempImg || (idx > -1 ? db.items[idx].img : "") };
+        if(!it.name) return alert("Item Name Required");
+        if(idx === -1) db.items.push(it); else db.items[idx] = it;
+        clearItemForm(); sync();
+    }
+    function editItem(i) {
+        const it = db.items[i]; document.getElementById('editItIdx').value = i;
+        document.getElementById('itCode').value = it.code; document.getElementById('itPartCode').value = it.partCode;
+        document.getElementById('itName').value = it.name; document.getElementById('itCost').value = it.cost;
+        document.getElementById('itPrice').value = it.price; document.getElementById('itStock').value = it.stock;
+        document.getElementById('itPrev').src = it.img; document.getElementById('itPrev').style.display = it.img ? 'block' : 'none'; 
+        document.getElementById('itBtn').innerText = "UPDATE ITEM DATA"; window.scrollTo(0,0);
+    }
+    function deleteItem(i) { if(confirm("Delete Item?")) { db.deleted.push({ type: 'Item', ref: db.items[i].name, date: new Date().toLocaleString(), data: db.items[i] }); db.items.splice(i, 1); sync(); } }
+    function clearItemForm() { document.getElementById('editItIdx').value = "-1"; ['itCode','itPartCode','itName','itCost','itPrice','itStock'].forEach(id => document.getElementById(id).value = ""); document.getElementById('itPrev').style.display='none'; tempImg=""; document.getElementById('itBtn').innerText = "SAVE ITEM DATA"; const f = document.querySelector('#items input[type="file"]'); if(f) f.value=""; }
+
+    function updateStockManual() {
+        const name = document.getElementById('stItemSelect').value; const qty = parseFloat(document.getElementById('stQty').value || 0);
+        const it = db.items.find(x => x.name === name); if(it && qty > 0) { it.stock += qty; document.getElementById('stQty').value = ""; sync(); }
+    }
+
+    function addOrderRow() {
+        const div = document.createElement('div'); div.className="grid box";
+        // Auto-fill price logic included here
+        const options = db.items.map(i=>`<option value="${i.name}" data-price="${i.price}">${i.name}</option>`).join('');
+        div.innerHTML = `<select class="on" onchange="this.nextElementSibling.value = this.options[this.selectedIndex].getAttribute('data-price') || ''">
+            <option value="" data-price="">-- Select Item --</option>
+            ${options}
+        </select>
+        <input type="number" class="op" placeholder="Sell Price">
+        <input type="number" class="oq" placeholder="Qty">
+        <button class="btn btn-del" onclick="this.parentElement.remove()">REMOVE</button>`;
+        document.getElementById('ordItemsList').appendChild(div);
+    }
+    
+    function toggleOrdAdvMethod() {
+        const method = document.getElementById('ordAdvMethod').value;
+        const isCheque = method === 'Cheque';
+        document.getElementById('ordChkNo').style.display = isCheque ? 'block' : 'none';
+        document.getElementById('ordChkDate').style.display = isCheque ? 'block' : 'none';
+    }
+
+    // IMPORTANT UPDATE: Saving Cost history lock to the order
+    function saveOrder() {
+        const items = [];
+        document.querySelectorAll('#ordItemsList > div').forEach(r => {
+            const n = r.querySelector('.on').value, q = parseFloat(r.querySelector('.oq').value||0), p = parseFloat(r.querySelector('.op').value||0);
+            if(n && q) {
+                // Get current cost and lock it into the order for historical accuracy
+                const itData = db.items.find(x => x.name === n);
+                const currentCost = itData ? (itData.cost || 0) : 0;
+                items.push({n: n, q: q, p: p, c: currentCost}); // 'c' stores the historical cost
+            }
+        });
+        if(items.length === 0) return alert("Add items!");
+        db.orders.push({ 
+            shop: document.getElementById('ordShopSelect').value, 
+            date: document.getElementById('ordDate').value, 
+            targetDate: document.getElementById('ordTargetDate').value, 
+            adv: parseFloat(document.getElementById('ordAdv').value||0), 
+            advMethod: document.getElementById('ordAdvMethod').value,
+            advDate: document.getElementById('ordAdvDate').value, 
+            advChkNo: document.getElementById('ordChkNo').value,
+            advChkDate: document.getElementById('ordChkDate').value,
+            items, 
+            status: 'Pending' 
+        });
+        document.getElementById('ordItemsList').innerHTML = ""; 
+        document.getElementById('ordAdv').value = ""; 
+        document.getElementById('ordDate').value = ""; 
+        document.getElementById('ordTargetDate').value = ""; 
+        document.getElementById('ordAdvDate').value = ""; 
+        document.getElementById('ordAdvMethod').value = "Cash";
+        document.getElementById('ordChkNo').value = "";
+        document.getElementById('ordChkDate').value = "";
+        toggleOrdAdvMethod();
+        sync();
+    }
+
+    function openInvoiceCreator(orderId) {
+        activeInvOrder = db.orders.find(o => o.id === orderId) || db.orders[orderId];
+        document.getElementById('salInv').value = "INV-" + (1000 + db.sales.length);
+        document.getElementById('salDate').value = new Date().toISOString().substr(0,10);
+        const shopList = db.shops.map(s => `<option value="${s.name}" ${s.name === activeInvOrder.shop ? 'selected' : ''}>${s.name}</option>`).join('');
+        document.getElementById('salShopSelect').innerHTML = shopList; document.getElementById('inv-creator').style.display = 'block'; changeTab('pending-pay'); window.scrollTo(0,0);
+    }
+
+    function toggleSalPayMethod() {
+        const isCheque = document.getElementById('salPayMethod').value === 'Cheque';
+        document.getElementById('salChkNo').style.display = isCheque ? 'block' : 'none';
+        document.getElementById('salChkDate').style.display = isCheque ? 'block' : 'none';
+    }
+
+    function processInvoiceFinal() {
+        if(!activeInvOrder) return;
+        const payNow = parseFloat(document.getElementById('salPay').value || 0); 
+        const payMethod = document.getElementById('salPayMethod').value;
+        const invDate = document.getElementById('salDate').value;
+        const total = activeInvOrder.items.reduce((a,b)=> a + (b.q * b.p), 0); 
+        const bal = total - activeInvOrder.adv - payNow;
+        
+        let paymentsArr = [];
+        if(payNow > 0) paymentsArr.push({ 
+            date: invDate, 
+            amt: payNow, 
+            method: payMethod,
+            chkNo: document.getElementById('salChkNo').value,
+            chkDate: document.getElementById('salChkDate').value
+        });
+
+        const sale = { 
+            inv: document.getElementById('salInv').value, 
+            date: invDate, 
+            shop: document.getElementById('salShopSelect').value, 
+            items: activeInvOrder.items, 
+            grand: total, 
+            adv: activeInvOrder.adv, 
+            advDate: activeInvOrder.advDate, 
+            advMethod: activeInvOrder.advMethod,
+            advChkNo: activeInvOrder.advChkNo,
+            advChkDate: activeInvOrder.advChkDate,
+            paid: payNow, 
+            payments: paymentsArr,
+            status: bal <= 0 ? 'Finished' : 'Pending' 
+        };
+        db.sales.push(sale);
+        const orderIdx = db.orders.indexOf(activeInvOrder); if(orderIdx > -1) db.orders.splice(orderIdx, 1);
+        activeInvOrder = null; 
+        document.getElementById('inv-creator').style.display = 'none'; 
+        document.getElementById('salPay').value = ""; 
+        document.getElementById('salChkNo').value = "";
+        document.getElementById('salChkDate').value = "";
+        sync(); 
+        printInvByRef(sale.inv);
+    }
+
+    function printInvByRef(invNo) { const i = db.sales.findIndex(s => s.inv === invNo); if(i > -1) printInv(i); }
+
+    function printInv(i) {
+        const s = db.sales[i]; if(!s) return;
+        const sh = db.shops.find(x => x.name === s.shop) || {};
+        
+        if (LOGO_BASE64) document.getElementById('inv-logo').src = LOGO_BASE64;
+        if (QR_BASE64) document.getElementById('inv-qr').src = QR_BASE64;
+
+        document.getElementById('p-shop-name').innerText = s.shop;
+        document.getElementById('p-shop-addr').innerText = sh.loc || "";
+        document.getElementById('p-shop-tel').innerText = sh.p1 || ""; // Displays WA Number on the bill
+        document.getElementById('p-inv').innerText = s.inv;
+        document.getElementById('p-date').innerText = s.date;
+        document.getElementById('p-body').innerHTML = (s.items||[]).map(it => `<tr><td style="border:1px solid #000; padding:12px;">${it.n}</td><td style="border:1px solid #000; padding:12px; text-align:center;">${it.p} x ${it.q}</td><td style="border:1px solid #000; padding:12px; text-align:right;">${(it.q*it.p).toFixed(2)}</td></tr>`).join('');
+        document.getElementById('p-total').innerText = s.grand.toFixed(2);
+        document.getElementById('p-adv').innerText = (s.adv||0).toFixed(2);
+        document.getElementById('p-adv-date').innerText = s.advDate || "";
+        document.getElementById('p-pay').innerText = (s.paid||0).toFixed(2);
+
+        const balAmount = s.grand - (s.adv||0) - (s.paid||0);
+        document.getElementById('p-bal').innerText = balAmount <= 0 ? `Rs. 0.00` : `Rs. ${balAmount.toFixed(2)}`;
+
+        document.getElementById('invoice-print-area').style.display = 'block';
+        window.print(); document.getElementById('invoice-print-area').style.display = 'none';
+    }
+
+    function togglePayModalOnline() {
+        const method = document.getElementById('payModalMethod').value;
+        const isOnline = method === 'Online';
+        const isCheque = method === 'Cheque';
+        document.getElementById('payModalBank').style.display = isOnline ? 'block' : 'none';
+        document.getElementById('payModalAcc').style.display = isOnline ? 'block' : 'none';
+        document.getElementById('payModalSlip').style.display = isOnline ? 'block' : 'none';
+        document.getElementById('payModalChkNo').style.display = isCheque ? 'block' : 'none';
+        document.getElementById('payModalChkDateLabel').style.display = isCheque ? 'block' : 'none';
+        document.getElementById('payModalChkDate').style.display = isCheque ? 'block' : 'none';
+    }
+
+    function openPayModal(idx) {
+        document.getElementById('payModalIdx').value = idx;
+        document.getElementById('payModalDate').value = new Date().toISOString().substr(0,10);
+        document.getElementById('payModalAmt').value = "";
+        document.getElementById('payModalBank').value = "";
+        document.getElementById('payModalAcc').value = "";
+        document.getElementById('payModalSlip').value = "";
+        document.getElementById('payModalChkNo').value = "";
+        document.getElementById('payModalChkDate').value = "";
+        document.getElementById('payModalMethod').value = "Cash";
+        togglePayModalOnline();
+        document.getElementById('payModalOverlay').style.display = 'flex';
+    }
+
+    function closePayModal() {
+        document.getElementById('payModalOverlay').style.display = 'none';
+    }
+
+    function confirmPay() {
+        const i = parseInt(document.getElementById('payModalIdx').value);
+        const amt = parseFloat(document.getElementById('payModalAmt').value);
+        const method = document.getElementById('payModalMethod').value;
+        const date = document.getElementById('payModalDate').value;
+        const bank = document.getElementById('payModalBank').value;
+        const acc = document.getElementById('payModalAcc').value;
+        const slip = document.getElementById('payModalSlip').value;
+        const chkNo = document.getElementById('payModalChkNo').value;
+        const chkDate = document.getElementById('payModalChkDate').value;
+        
+        if(isNaN(amt) || amt <= 0 || !date) return alert("Please enter valid amount and date.");
+        
+        if(!db.sales[i].paid) db.sales[i].paid = 0;
+        db.sales[i].paid += amt;
+        
+        if(!db.sales[i].payments) db.sales[i].payments = [];
+        db.sales[i].payments.push({ date: date, amt: amt, method: method, bank: bank, acc: acc, slip: slip, chkNo: chkNo, chkDate: chkDate });
+
+        const bal = db.sales[i].grand - (db.sales[i].adv||0) - db.sales[i].paid;
+        if(bal <= 0) {
+            db.sales[i].status = 'Finished'; 
+        }
+        
+        closePayModal();
+        sync();
+    }
+
+    // Advanced Return Implementation
+    function openRetModal(idx) {
+        document.getElementById('retModalIdx').value = idx;
+        const s = db.sales[idx];
+        const itemSelect = document.getElementById('retModalItem');
+        
+        // Show only items that have quantity > 0
+        const validItems = (s.items||[]).filter(it => it.q > 0);
+        if(validItems.length === 0) {
+            alert("No items available to return in this invoice.");
+            return;
+        }
+
+        itemSelect.innerHTML = validItems.map(it => `<option value="${it.n}" data-max="${it.q}">${it.n} (Purchased: ${it.q})</option>`).join('');
+        
+        document.getElementById('retModalDate').value = new Date().toISOString().substr(0,10);
+        document.getElementById('retModalQty').value = "";
+        document.getElementById('retModalReason').value = "";
+        document.getElementById('retModalOverlay').style.display = 'flex';
+        updateRetModalMaxQty();
+    }
+
+    function closeRetModal() {
+        document.getElementById('retModalOverlay').style.display = 'none';
+    }
+
+    function updateRetModalMaxQty() {
+        const sel = document.getElementById('retModalItem');
+        if(sel.options.length > 0) {
+            const max = sel.options[sel.selectedIndex].getAttribute('data-max');
+            document.getElementById('retModalQty').max = max;
+            document.getElementById('retModalQty').placeholder = `Max: ${max}`;
+        }
+    }
+
+    function confirmReturn() {
+        const idx = parseInt(document.getElementById('retModalIdx').value);
+        const s = db.sales[idx];
+        const itemName = document.getElementById('retModalItem').value;
+        const retQty = parseFloat(document.getElementById('retModalQty').value);
+        const reason = document.getElementById('retModalReason').value;
+        const retDate = document.getElementById('retModalDate').value;
+
+        if(!itemName || isNaN(retQty) || retQty <= 0 || !retDate || !reason) return alert("Please fill all valid details including reason.");
+
+        const it = s.items.find(x => x.n === itemName);
+        if(retQty > it.q) return alert(`Maximum return quantity is ${it.q}`);
+
+        // Update item quantity and sale grand total
+        it.q -= retQty;
+        const refundValue = retQty * it.p;
+        s.grand -= refundValue;
+
+        // Log the return
+        if(!db.returns) db.returns = [];
+        db.returns.push({
+            shop: s.shop,
+            inv: s.inv,
+            retDate: retDate,
+            itemName: itemName,
+            retQty: retQty,
+            reason: reason,
+            value: refundValue
+        });
+
+        // Update Status
+        const bal = s.grand - (s.adv||0) - (s.paid||0);
+        if(bal <= 0) s.status = 'Finished';
+        else s.status = 'Pending'; 
+
+        sync();
+        closeRetModal();
+    }
+
+    function undoReturn(i) {
+        if(confirm("Undo this return?")) { 
+            const r = db.returns[i]; 
+            if(r.itemName) {
+                // New logic restore
+                const s = db.sales.find(x => x.inv === r.inv);
+                if(s) {
+                    const it = s.items.find(x => x.n === r.itemName);
+                    if(it) {
+                        it.q += parseFloat(r.retQty);
+                        s.grand += parseFloat(r.value);
+                        if(s.grand - (s.adv||0) - (s.paid||0) > 0) s.status = 'Pending';
+                    }
+                }
+            } else {
+                // Old legacy restore
+                const retData = db.returns[i]; delete retData.reason; delete retData.retQty; delete retData.retDate; db.sales.push(retData); 
+            }
+            db.returns.splice(i, 1); 
+            sync(); 
+        }
+    }
+
+    function deleteSale(i) {
+        if(confirm("Delete this invoice?")) { const data = db.sales[i]; db.deleted.push({ type: 'Invoice', ref: data.inv, date: new Date().toLocaleString(), data: data }); db.sales.splice(i, 1); sync(); }
+    }
+
+    function undoDelete(i) {
+        const item = db.deleted[i];
+        if(item.type === 'Invoice') db.sales.push(item.data);
+        else if(item.type === 'Shop') db.shops.push(item.data);
+        else if(item.type === 'Item') db.items.push(item.data);
+        db.deleted.splice(i, 1); sync();
+    }
+
+    function saveTax() {
+        const idx = parseInt(document.getElementById('editTaxIdx').value);
+        const year = document.getElementById('taxYear').value; const amt = document.getElementById('taxAmt').value;
+        const date = document.getElementById('taxDate').value; const slip = document.getElementById('taxSlip').value;
+        if(!amt || !date) return alert("Amount and Date are required!");
+        const obj = { year: year, amt: parseFloat(amt), date: date, slip: slip, img: tempImg || (idx > -1 ? db.tax[idx].img : "") };
+        if(idx === -1) db.tax.push(obj); else db.tax[idx] = obj;
+        clearTaxForm(); sync();
+    }
+    function editTax(i) {
+        const t = db.tax[i]; document.getElementById('editTaxIdx').value = i;
+        document.getElementById('taxYear').value = t.year; document.getElementById('taxAmt').value = t.amt;
+        document.getElementById('taxDate').value = t.date; document.getElementById('taxSlip').value = t.slip;
+        document.getElementById('taxPrev').src = t.img; document.getElementById('taxPrev').style.display = t.img ? 'block' : 'none'; 
+        document.getElementById('taxBtn').innerText = "UPDATE TAX PAYMENT"; window.scrollTo(0,0);
+    }
+    function clearTaxForm() { document.getElementById('editTaxIdx').value = "-1"; ['taxAmt','taxDate','taxSlip'].forEach(id => document.getElementById(id).value = ""); document.getElementById('taxPrev').style.display='none'; tempImg=""; document.getElementById('taxBtn').innerText = "SAVE TAX PAYMENT"; const f = document.querySelector('#tax input[type="file"]'); if(f) f.value=""; }
+    function deleteTax(i) { if(confirm("Delete this tax record?")) { db.tax.splice(i, 1); sync(); } }
+
+    function updateMsgNumbers() {
+        const sel = document.getElementById('msgShopSelect').value; const s = db.shops.find(x => x.name === sel);
+        // Display Normal number first for SMS, WA number second
+        if(s) document.getElementById('msgNumSelect').innerHTML = `<option value="${s.p2}">${s.p2} (Normal)</option><option value="${s.p1}">${s.p1} (WhatsApp)</option>`;
+    }
+    function sendSMS() {
+        const num = document.getElementById('msgNumSelect').value; const body = document.getElementById('smsBody').value;
+        if(!num) return alert("No Number"); window.open(`sms:${num}?body=${encodeURIComponent(body)}`);
+    }
+    function updateWaInvoices() {
+        const sh = document.getElementById('waShopSelect').value;
+        const invs = db.sales.filter(s => s.shop === sh).map(s => `<option value="${s.inv}">${s.inv} (Date: ${s.date})</option>`).join('');
+        document.getElementById('waInvSelect').innerHTML = invs || '<option value="">No Invoices</option>';
+    }
+    
+    function sendWhatsApp() {
+        const invNo = document.getElementById('waInvSelect').value; 
+        if(!invNo) return alert("Select Invoice");
+        const s = db.sales.find(x => x.inv === invNo); const sh = db.shops.find(x => x.name === s.shop);
+        let itemText = (s.items||[]).map(it => `${it.n} - Rs.${it.p} x ${it.q} = Rs.${(it.p*it.q).toFixed(2)}`).join('\n');
+        const bal = s.grand - (s.adv||0) - (s.paid||0);
+        const msg = `*YENUFLEX RUBBER PRODUCTS*\n----------------------\n*Invoice No:* ${s.inv}\n*Date:* ${s.date}\n*Shop:* ${s.shop}\n----------------------\n*Items:*\n${itemText}\n----------------------\n*Sub Total:* Rs. ${s.grand.toFixed(2)}\n*Advance:* Rs. ${(s.adv||0).toFixed(2)}\n*Paid:* Rs. ${(s.paid||0).toFixed(2)}\n*Balance:* Rs. ${bal.toFixed(2)}\n----------------------\nThank you!`;
+        window.open(`https://wa.me/${sh.p1}?text=${encodeURIComponent(msg)}`); // Uses sh.p1 (WhatsApp Number)
+    }
+
+    window.sendOverdueWA = function(idx) {
+        const s = db.sales[idx];
+        const sh = db.shops.find(x => x.name === s.shop);
+        if(!sh || !sh.p1) return alert("WhatsApp number not found for this shop!");
+        
+        const bal = s.grand - (s.adv||0) - (s.paid||0);
+        const now = new Date();
+        const saleDate = new Date(s.date);
+        const diffDays = Math.floor((now - saleDate) / (1000 * 60 * 60 * 24));
+
+        let lastPayText = "කිසිදු ගෙවීමක් කර නැත";
+        if (s.payments && s.payments.length > 0) {
+            let lastP = s.payments[s.payments.length - 1];
+            lastPayText = `රු. ${lastP.amt.toFixed(2)} (${lastP.date})`;
+        } else if (s.adv > 0) {
+            lastPayText = `රු. ${s.adv.toFixed(2)} (අත්තිකාරම් - ${s.advDate || s.date})`;
+        } else if (s.paid > 0) {
+            lastPayText = `රු. ${s.paid.toFixed(2)} (මුල් ගෙවීම - ${s.date})`;
+        }
+
+        let itemText = (s.items||[]).map(it => `${it.n} (${it.q})`).join(', ');
+
+        const msg = `*YENUFLEX RUBBER PRODUCTS*\n🚨 *ගෙවීම් සිහිකැඳවීමයි* 🚨\n\nහිතවත් ${s.shop},\nඔබගේ බිල්පත් අංක *${s.inv}* (දිනය: ${s.date}) සඳහා ගෙවීමට ඇති ශේෂය දින ${diffDays} කින් ප්‍රමාද වී ඇත.\n\n*ලබාගත් භාණ්ඩ:* ${itemText}\n*සම්පූර්ණ මුදල:* රු. ${s.grand.toFixed(2)}\n*මෙතෙක් ගෙවා ඇති මුදල:* රු. ${( (s.adv||0) + (s.paid||0) ).toFixed(2)}\n*අවසාන ගෙවීම:* ${lastPayText}\n\n❗️ *ගෙවීමට ඉතිරි ශේෂය:* රු. ${bal.toFixed(2)}\n\nකරුණාකර මෙම හිඟ මුදල හැකි ඉක්මනින් ගෙවා නිම කරන මෙන් කාරුණිකව සිහිපත් කරමු.\nස්තූතියි.`;
+        window.open(`https://wa.me/${sh.p1}?text=${encodeURIComponent(msg)}`); // Uses sh.p1 (WhatsApp Number)
+    }
+
+    // UPDATED: Now sends to sh.p1 (WhatsApp Number) instead of sh.p2
+    window.sendOverdueSMS = function(idx) {
+        const s = db.sales[idx];
+        const sh = db.shops.find(x => x.name === s.shop);
+        if(!sh || !sh.p1) return alert("WhatsApp number not found for this shop!");
+        
+        const bal = s.grand - (s.adv||0) - (s.paid||0);
+        const diffDays = Math.floor((new Date() - new Date(s.date)) / (1000 * 60 * 60 * 24));
+        
+        let lastPayText = "No Pay";
+        if (s.payments && s.payments.length > 0) {
+            let lastP = s.payments[s.payments.length - 1];
+            lastPayText = `Rs.${lastP.amt} on ${lastP.date}`;
+        } else if (s.adv > 0 || s.paid > 0) {
+            lastPayText = `Rs.${((s.adv||0)+(s.paid||0))} on ${s.date}`;
+        }
+
+        const msg = `YENUFLEX: Reminder for Inv ${s.inv} (${s.date}). Overdue by ${diffDays} days. Total: Rs.${s.grand}, Paid: Rs.${((s.adv||0)+(s.paid||0))}. Last Pay: ${lastPayText}. BALANCE DUE: Rs.${bal}. Please arrange payment ASAP. Thanks.`;
+        window.open(`sms:${sh.p1}?body=${encodeURIComponent(msg)}`); // Uses sh.p1 (WhatsApp Number)
+    }
+
+    function toggleEbOnline() {
+        const method = document.getElementById('ebMethod').value;
+        const isOnline = method === 'Online';
+        const isCheque = method === 'Cheque';
+        document.getElementById('ebBank').style.display = isOnline ? 'block' : 'none';
+        document.getElementById('ebAcc').style.display = isOnline ? 'block' : 'none';
+        document.getElementById('ebSlip').style.display = isOnline ? 'block' : 'none';
+        document.getElementById('ebChkNo').style.display = isCheque ? 'block' : 'none';
+        document.getElementById('ebChkDate').style.display = isCheque ? 'block' : 'none';
+    }
+
+    function saveTransaction() {
+        const type = document.getElementById('ebType').value;
+        const method = document.getElementById('ebMethod').value;
+        const date = document.getElementById('ebDate').value;
+        const payee = document.getElementById('ebPayee').value;
+        const amt = parseFloat(document.getElementById('ebAmt').value);
+        const desc = document.getElementById('ebDesc').value;
+        const bank = document.getElementById('ebBank').value;
+        const acc = document.getElementById('ebAcc').value;
+        const slip = document.getElementById('ebSlip').value;
+        const chkNo = document.getElementById('ebChkNo').value;
+        const chkDate = document.getElementById('ebChkDate').value;
+
+        if(!date || !payee || isNaN(amt) || amt <= 0) return alert("Date, Payee and Amount are required.");
+
+        if(!db.transactions) db.transactions = [];
+        db.transactions.push({ type, method, date, payee, amt, desc, bank, acc, slip, chkNo, chkDate });
+        
+        ['ebDate', 'ebPayee', 'ebAmt', 'ebDesc', 'ebBank', 'ebAcc', 'ebSlip', 'ebChkNo', 'ebChkDate'].forEach(id => document.getElementById(id).value = "");
+        document.getElementById('ebType').value = "Withdrawal";
+        document.getElementById('ebMethod').value = "Cash";
+        toggleEbOnline();
+        sync();
+    }
+
+    // Pagination Helpers
+    function getPaginated(arr, key) {
+        const max = Math.ceil(arr.length / PAGE_LIMIT) || 1;
+        if (curPage[key] > max) curPage[key] = max;
+        const start = (curPage[key] - 1) * PAGE_LIMIT;
+        return arr.slice(start, start + PAGE_LIMIT);
+    }
+
+    function renderPg(total, key, containerId) {
+        const max = Math.ceil(total / PAGE_LIMIT) || 1;
+        if (total === 0) { document.getElementById(containerId).innerHTML = ""; return; }
+        
+        let html = `
+            <div class="pagination-container no-print">
+                <button onclick="changePage('${key}', -1)" ${curPage[key] === 1 ? 'disabled' : ''}>⬅ Previous</button>
+                <span>Page ${curPage[key]} of ${max}</span>
+                <button onclick="changePage('${key}', 1)" ${curPage[key] === max ? 'disabled' : ''}>Next ➡</button>
+            </div>
+        `;
+        document.getElementById(containerId).innerHTML = html;
+    }
+
+    function changePage(key, dir) { curPage[key] += dir; render(); }
+    function filterRender(key) { curPage[key] = 1; render(); }
+
+    function sortSalesArr(arr, sortVal) {
+        if(sortVal === 'date-desc') arr.sort((a,b) => new Date(b.date) - new Date(a.date));
+        else if(sortVal === 'date-asc') arr.sort((a,b) => new Date(a.date) - new Date(b.date));
+        else if(sortVal === 'inv-az') arr.sort((a,b) => a.inv.localeCompare(b.inv));
+        else if(sortVal === 'inv-za') arr.sort((a,b) => b.inv.localeCompare(a.inv));
+        else if(sortVal === 'shop-az') arr.sort((a,b) => a.shop.localeCompare(b.shop));
+        else if(sortVal === 'shop-za') arr.sort((a,b) => b.shop.localeCompare(a.shop));
+        return arr;
+    }
+
+    function renderProfitChart() {
+        const year = parseInt(document.getElementById('profitYearSelect').value) || new Date().getFullYear();
+        let monthlyProfit = new Array(12).fill(0);
+
+        db.sales.forEach(s => {
+            const saleDate = new Date(s.date);
+            if (saleDate.getFullYear() === year) {
+                const month = saleDate.getMonth(); 
+                (s.items||[]).forEach(it => {
+                    const itemRef = db.items.find(x => x.name === it.n) || { cost: 0 };
+                    // Historical Cost calculation: Uses saved order cost if exists, else current cost
+                    const pastCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
+                    monthlyProfit[month] += (it.p - pastCost) * it.q;
+                });
+            }
+        });
+
+        if (profitChartInstance) profitChartInstance.destroy();
+        const ctx = document.getElementById('profitChartCanvas').getContext('2d');
+        profitChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                datasets: [{ label: `Monthly Profit for ${year} (Rs)`, data: monthlyProfit, backgroundColor: '#8e44ad', borderColor: '#2980b9', borderWidth: 1 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    // ==========================================
+    // BULK BROADCAST FUNCTIONS (WA ONLY)
+    // ==========================================
+    let waBroadcastList = [];
+    let waCurrentIdx = 0;
+
+    function startBulkWA() {
+        const msg = document.getElementById('bulkMsgBody').value.trim();
+        if(!msg) return alert("කරුණාකර පණිවිඩය ඇතුළත් කරන්න.");
+        
+        waBroadcastList = db.shops.filter(s => s.p1);
+        if(waBroadcastList.length === 0) return alert("කඩවල් වල WhatsApp අංක ඇතුළත් කර නොමැත.");
+        
+        waCurrentIdx = 0;
+        document.getElementById('waBroadcastQueue').style.display = 'block';
+        updateWaQueueUI();
+    }
+
+    function updateWaQueueUI() {
+        const queueDiv = document.getElementById('waBroadcastQueue');
+        
+        if(waCurrentIdx >= waBroadcastList.length) {
+            queueDiv.innerHTML = `
+                <h4 style="margin-top: 0; color:var(--wa);">✅ සියලුම පණිවිඩ යවා අවසන්!</h4>
+                <button class="btn btn-info" onclick="document.getElementById('waBroadcastQueue').style.display='none'">Close</button>
+            `;
+            return;
+        }
+        
+        const shop = waBroadcastList[waCurrentIdx];
+        queueDiv.innerHTML = `
+            <h4 style="margin-top: 0; color: var(--primary);">🟢 WhatsApp Sending Queue (${waCurrentIdx}/${waBroadcastList.length} යවා ඇත)</h4>
+            <p style="font-size: 13px; color: #666;">WhatsApp මගින් එකවර අංක ගණනාවකට පණිවිඩ යැවීම (Spam Protection නිසා) අවහිර කර ඇති බැවින්, පහත බොත්තම එකින් එක ඔබා පණිවිඩ යවන්න.</p>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 15px; border-radius: 5px; border: 1px solid #ccc; margin-top: 10px;">
+                <div style="font-size: 15px;">
+                    <strong>${waCurrentIdx + 1}. ${shop.name}</strong> <br>
+                    <span style="color: #666;">${shop.p1}</span>
+                </div>
+                <button class="btn btn-wa" onclick="sendNextWA()">SEND TO THIS SHOP ➡</button>
+            </div>
+        `;
+    }
+
+    function sendNextWA() {
+        const msg = document.getElementById('bulkMsgBody').value.trim();
+        const shop = waBroadcastList[waCurrentIdx];
+        
+        // WhatsApp Web URL (Always uses sh.p1 - WhatsApp Number)
+        window.open(`https://wa.me/${shop.p1}?text=${encodeURIComponent(msg)}`, '_blank');
+        
+        waCurrentIdx++;
+        updateWaQueueUI();
+    }
+    // ==========================================
+
+
+    // MAIN RENDER FUNCTION
+    function render() {
+        // Prevent crashing if arrays are undefined
+        db.shops = db.shops || []; db.items = db.items || []; db.orders = db.orders || []; 
+        db.sales = db.sales || []; db.returns = db.returns || []; db.deleted = db.deleted || []; 
+        db.tax = db.tax || []; db.transactions = db.transactions || [];
+
+        const shOpts = db.shops.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+        const filterHead = '<option value="">All Shops</option>';
+        document.getElementById('ordShopSelect').innerHTML = shOpts; document.getElementById('msgShopSelect').innerHTML = shOpts; document.getElementById('waShopSelect').innerHTML = shOpts;
+        updateMsgNumbers(); updateWaInvoices();
+        
+        let soldTracker = {}; let returnTracker = {};
+        db.sales.forEach(s => { (s.items||[]).forEach(it => { soldTracker[it.n] = (soldTracker[it.n] || 0) + it.q; }); });
+        db.returns.forEach(r => { 
+            if(r.itemName) {
+                returnTracker[r.itemName] = (returnTracker[r.itemName] || 0) + parseFloat(r.retQty || 0);
+            } else if (r.items) {
+                // Legacy support
+                (r.items||[]).forEach(it => { returnTracker[it.n] = (returnTracker[it.n] || 0) + parseFloat(r.retQty || 0); }); 
+            }
+        });
+
+        // Shops
+        let shArr = db.shops.map((s,i) => ({s, i}));
+        let sortShVal = document.getElementById('sortShops') ? document.getElementById('sortShops').value : 'az';
+        if(sortShVal === 'az') shArr.sort((a,b) => a.s.name.localeCompare(b.s.name));
+        else if(sortShVal === 'za') shArr.sort((a,b) => b.s.name.localeCompare(a.s.name));
+        let pShops = getPaginated(shArr, 'shops');
+        document.getElementById('shopBody').innerHTML = pShops.map(({s, i}) => `<tr><td><img src="${s.img}" class="thumb" onclick="openLightbox(this.src)"></td><td>${s.name}</td><td>${s.loc}</td><td>${s.p1} / ${s.p2}</td><td>${s.notes}</td><td><button class="btn btn-edit" onclick="editShop(${i})">Edit</button> <button class="btn btn-del" onclick="deleteShop(${i})">X</button></td></tr>`).join('');
+        renderPg(shArr.length, 'shops', 'pg-shops');
+
+        // Items
+        let itemArr = db.items.map((it, i) => ({it, i}));
+        let pItems = getPaginated(itemArr, 'items');
+        document.getElementById('itemBody').innerHTML = pItems.map(({it, i}) => `<tr><td><img src="${it.img}" class="thumb" onclick="openLightbox(this.src)"></td><td>Code: ${it.code}<br>Part: ${it.partCode}</td><td>${it.name}</td><td>${it.cost}</td><td>${it.price}</td><td><button class="btn btn-edit" onclick="editItem(${i})">Edit</button> <button class="btn btn-del" onclick="deleteItem(${i})">X</button></td></tr>`).join('');
+        renderPg(itemArr.length, 'items', 'pg-items');
+        
+        // Stock
+        document.getElementById('stItemSelect').innerHTML = db.items.map(i => `<option value="${i.name}">${i.name}</option>`).join('');
+        let pStock = getPaginated(db.items, 'stock');
+        document.getElementById('stockBody').innerHTML = pStock.map(it => {
+            const sold = soldTracker[it.name] || 0; const ret = returnTracker[it.name] || 0; const avail = it.stock - sold + ret;
+            return `<tr><td>${it.name}</td><td>${it.stock}</td><td>${sold}</td><td>${ret}</td><td style="font-weight:bold; color:${avail < 5 ? 'red' : 'green'};">${avail}</td></tr>`;
+        }).join('');
+        renderPg(db.items.length, 'stock', 'pg-stock');
+
+        // Filters
+        const sortedOrders = [...db.orders].sort((a,b) => new Date(b.date) - new Date(a.date));
+        const sortedSales = [...db.sales].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+        const fs1_val = document.getElementById('fFinShop').value; 
+        const fs2_val = document.getElementById('fShop').value; 
+        const fs3_val = document.getElementById('fFinPayShop').value;
+        const fOvdShop = document.getElementById('fOverdueShop') ? document.getElementById('fOverdueShop').value : "";
+
+        document.getElementById('fFinShop').innerHTML = filterHead + shOpts; 
+        document.getElementById('fShop').innerHTML = filterHead + shOpts; 
+        document.getElementById('fFinPayShop').innerHTML = filterHead + shOpts; 
+        if(document.getElementById('fOverdueShop')) document.getElementById('fOverdueShop').innerHTML = filterHead + shOpts;
+        
+        document.getElementById('fFinShop').value = fs1_val; 
+        document.getElementById('fShop').value = fs2_val; 
+        document.getElementById('fFinPayShop').value = fs3_val; 
+        if(document.getElementById('fOverdueShop')) document.getElementById('fOverdueShop').value = fOvdShop;
+
+        // Pending Orders
+        let pendingOrdersList = sortedOrders.filter(o => o.status === 'Pending');
+        let pPendOrd = getPaginated(pendingOrdersList, 'orders');
+        document.getElementById('orderBody').innerHTML = pPendOrd.map((o) => { const realIdx = db.orders.indexOf(o); return `<tr><td>${o.date}</td><td>${o.targetDate}</td><td>${o.shop}</td><td>${(o.items||[]).map(x=>`${x.n}(${x.p}x${x.q})`).join(', ')}</td><td>${o.adv} (${o.advMethod||'Cash'})</td><td><button class="btn btn-info" onclick="db.orders[${realIdx}].status='Finished';sync()">Finish</button></td></tr>`; }).join('');
+        renderPg(pendingOrdersList.length, 'orders', 'pg-orders');
+
+        // Finished Orders
+        let finOrdersList = sortedOrders.filter(o => o.status === 'Finished' && (!fs1_val || o.shop === fs1_val));
+        let pFinOrd = getPaginated(finOrdersList, 'finOrders');
+        document.getElementById('finBody').innerHTML = pFinOrd.map((o) => { const realIdx = db.orders.indexOf(o); return `<tr><td>${o.shop}</td><td>${(o.items||[]).map(x=>`${x.n}(${x.p}x${x.q})`).join(', ')}</td><td>${(o.items||[]).reduce((a,b)=>a+(b.p*b.q),0)}</td><td>READY</td><td><button class="btn btn-save" onclick="openInvoiceCreator(${realIdx})">INVOICE</button></td></tr>`; }).join('');
+        renderPg(finOrdersList.length, 'finOrders', 'pg-finOrders');
+
+        // Pending Payments
+        let penPaySortVal = document.getElementById('sortPenPay') ? document.getElementById('sortPenPay').value : 'date-desc';
+        let penPayList = db.sales.filter(s => s.status === 'Pending' && (!fs2_val || s.shop === fs2_val));
+        penPayList = sortSalesArr(penPayList, penPaySortVal);
+        let pPenPay = getPaginated(penPayList, 'penPay');
+        document.getElementById('penPayBody').innerHTML = pPenPay.map((s) => {
+            const bal = s.grand - (s.adv||0) - (s.paid||0); const realIdx = db.sales.indexOf(s); let showBal = bal <= 0 ? `Rs. 0` : bal;
+            return `<tr><td>${s.inv}</td><td>${s.date}</td><td>${s.shop}</td><td>${(s.items||[]).map(x=>`${x.n}(${x.p}x${x.q})`).join('<br>')}</td><td>${s.grand.toFixed(2)}</td><td>${((s.adv||0)+(s.paid||0)).toFixed(2)}</td><td style="color:red; font-weight:bold;">${showBal}</td><td><div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;"><button class="btn btn-info" style="width:100%;font-size:12px;padding:6px;" onclick="printInv(${realIdx})">Print</button><button class="btn btn-edit" style="width:100%;font-size:12px;padding:6px;" onclick="openPayModal(${realIdx})">Pay</button><button class="btn btn-edit" style="background:#f39c12;width:100%;font-size:12px;padding:6px;" onclick="openRetModal(${realIdx})">Return</button><button class="btn btn-del" style="width:100%;font-size:12px;padding:6px;" onclick="deleteSale(${realIdx})">X</button></div></td></tr>`;
+        }).join('');
+        renderPg(penPayList.length, 'penPay', 'pg-penPay');
+
+        // OVERDUE PAYMENTS
+        if(document.getElementById('overdueBody')) {
+            const nowMs = new Date().getTime();
+            let overdueList = db.sales.filter(s => {
+                if(s.status === 'Finished') return false;
+                let daysDiff = (nowMs - new Date(s.date).getTime()) / (1000 * 60 * 60 * 24);
+                return daysDiff > 21 && (!fOvdShop || s.shop === fOvdShop);
+            });
+            overdueList.sort((a,b) => new Date(a.date) - new Date(b.date)); 
+            let pOverdue = getPaginated(overdueList, 'overdue');
+            document.getElementById('overdueBody').innerHTML = pOverdue.map((s) => {
+                const bal = s.grand - (s.adv||0) - (s.paid||0); const realIdx = db.sales.indexOf(s); 
+                return `<tr><td style="font-weight:bold;">${s.inv}</td><td>${s.date}</td><td>${s.shop}</td><td>${(s.items||[]).map(x=>`${x.n} (${x.q})`).join('<br>')}</td><td>Rs. ${s.grand.toFixed(2)}</td><td>Rs. ${((s.adv||0)+(s.paid||0)).toFixed(2)}</td><td style="color:red; font-weight:bold; font-size:15px;">Rs. ${bal.toFixed(2)}</td><td><div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;"><button class="btn btn-edit" style="width:100%;font-size:12px;padding:6px;" onclick="openPayModal(${realIdx})">Pay</button><button class="btn btn-edit" style="width:100%;font-size:12px;padding:6px;background:#f39c12;" onclick="openRetModal(${realIdx})">Return</button><button class="btn btn-wa" style="width:100%;font-size:12px;padding:6px;" onclick="sendOverdueWA(${realIdx})">WA Msg</button><button class="btn btn-info" style="width:100%;font-size:12px;padding:6px;" onclick="sendOverdueSMS(${realIdx})">SMS Msg</button></div></td></tr>`;
+            }).join('');
+            renderPg(overdueList.length, 'overdue', 'pg-overdue');
+        }
+
+        // Finished Payments
+        let finPaySortVal = document.getElementById('sortFinPay') ? document.getElementById('sortFinPay').value : 'date-desc';
+        let finPayList = db.sales.filter(s => s.status === 'Finished' && (!fs3_val || s.shop === fs3_val));
+        finPayList = sortSalesArr(finPayList, finPaySortVal);
+        let pFinPay = getPaginated(finPayList, 'finPay');
+        document.getElementById('finPayBody').innerHTML = pFinPay.map((s) => { const realIdx = db.sales.indexOf(s); return `<tr><td>${s.inv}</td><td>${s.date}</td><td>${s.shop}</td><td>${(s.items||[]).map(x=>`${x.n} (${x.p} x ${x.q})`).join('<br>')}</td><td>${s.grand.toFixed(2)}</td><td>PAID</td><td><div style="display:flex;flex-direction:row;gap:5px;"><button class="btn btn-info" style="font-size:12px;padding:6px;" onclick="printInv(${realIdx})">Print</button><button class="btn btn-edit" style="font-size:12px;padding:6px;" onclick="openRetModal(${realIdx})">Return</button></div></td></tr>`; }).join('');
+        renderPg(finPayList.length, 'finPay', 'pg-finPay');
+
+        // E-BOOK LEDGER LOGIC
+        if(document.getElementById('ebookBody')) {
+            let ledger = [];
+            let allPayees = new Set();
+            
+            db.orders.filter(o => o.status === 'Pending').forEach(o => {
+                if(o.adv > 0) { ledger.push({ date: o.advDate||o.date, payee: o.shop, desc: `Advance (Pending Order)`, method: o.advMethod||'Cash', type: 'Income', amt: o.adv, bank: '', acc: '', slip: '', chkNo: o.advChkNo||'', chkDate: o.advChkDate||'' }); allPayees.add(o.shop); }
+            });
+            
+            db.sales.forEach(s => {
+                if(s.adv > 0) { ledger.push({ date: s.advDate||s.date, payee: s.shop, desc: `Advance Transfer - Inv: ${s.inv}`, method: s.advMethod||'Cash', type: 'Income', amt: s.adv, bank: '', acc: '', slip: '', chkNo: s.advChkNo||'', chkDate: s.advChkDate||'' }); allPayees.add(s.shop); }
+                if(s.payments && s.payments.length > 0) {
+                    s.payments.forEach(p => {
+                        ledger.push({ date: p.date, payee: s.shop, desc: `Payment - Inv: ${s.inv}`, method: p.method||'Cash', type: 'Income', amt: p.amt, bank: p.bank||'', acc: p.acc||'', slip: p.slip||'', chkNo: p.chkNo||'', chkDate: p.chkDate||'' }); allPayees.add(s.shop);
+                    });
+                }
+            });
+
+            db.transactions.forEach(t => {
+                ledger.push({ date: t.date, payee: t.payee, desc: t.desc, method: t.method, type: t.type === 'Withdrawal' ? 'Expense' : 'Expense', amt: t.amt, bank: t.bank||'', acc: t.acc||'', slip: t.slip||'', chkNo: t.chkNo||'', chkDate: t.chkDate||'' });
+                allPayees.add(t.payee);
+            });
+
+            ledger.sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            let runBal = 0; let totalIn = 0; let totalOut = 0;
+            ledger.forEach(l => {
+                if(l.type === 'Income') { runBal += l.amt; totalIn += l.amt; }
+                else { runBal -= l.amt; totalOut += l.amt; }
+                l.bal = runBal;
+            });
+
+            document.getElementById('ebTotalIn').innerText = "Rs. " + totalIn.toFixed(2);
+            document.getElementById('ebTotalOut').innerText = "Rs. " + totalOut.toFixed(2);
+            document.getElementById('ebBalance').innerText = "Rs. " + runBal.toFixed(2);
+
+            let payeeHtml = '<option value="">All Shops & Payees</option>';
+            [...allPayees].sort().forEach(p => payeeHtml += `<option value="${p}">${p}</option>`);
+            const currPayeeVal = document.getElementById('fEbPayee').value;
+            document.getElementById('fEbPayee').innerHTML = payeeHtml;
+            document.getElementById('fEbPayee').value = currPayeeVal;
+
+            ledger.reverse();
+            const fEbType = document.getElementById('fEbType').value;
+            const fEbMethod = document.getElementById('fEbMethod').value;
+            const fEbPayee = document.getElementById('fEbPayee').value;
+
+            let filteredLedger = ledger.filter(l => {
+                return (!fEbType || l.type === fEbType) && (!fEbMethod || l.method === fEbMethod) && (!fEbPayee || l.payee === fEbPayee);
+            });
+
+            let pLedger = getPaginated(filteredLedger, 'ebook');
+            document.getElementById('ebookBody').innerHTML = pLedger.map(l => {
+                let inAmt = l.type === 'Income' ? l.amt.toFixed(2) : '-';
+                let outAmt = l.type === 'Expense' ? l.amt.toFixed(2) : '-';
+                let bankInfo = '-';
+                if(l.method === 'Online') bankInfo = `${l.bank||'-'} / Acc: ${l.acc||'-'} / Slip: ${l.slip||'-'}`;
+                if(l.method === 'Cheque') bankInfo = `Chk No: ${l.chkNo||'-'} / Date: ${l.chkDate||'-'}`;
+                
+                let methodLabel = l.method === 'Online' ? '🌐 Online' : (l.method === 'Cheque' ? '🏦 Cheque' : '💵 Cash');
+                return `<tr><td>${l.date}</td><td>${l.payee}</td><td>${l.desc}</td><td>${methodLabel}</td><td>${bankInfo}</td><td style="color:var(--accent); font-weight:bold;">${inAmt}</td><td style="color:var(--danger); font-weight:bold;">${outAmt}</td><td style="font-weight:bold; background:#e8f8f5;">Rs. ${l.bal.toFixed(2)}</td></tr>`;
+            }).join('');
+            renderPg(filteredLedger.length, 'ebook', 'pg-ebook');
+        }
+
+        // Returns
+        let retArr = db.returns.map((r, i) => ({r, i}));
+        let pRet = getPaginated(retArr, 'ret');
+        document.getElementById('retBody').innerHTML = pRet.map(({r, i}) => {
+            let itemDesc = r.itemName ? `${r.itemName} (${r.retQty})` : `Legacy Full Invoice`;
+            return `<tr><td>${r.retDate}</td><td>${r.shop}</td><td>${r.inv}</td><td>${itemDesc}</td><td>${r.reason||'-'}</td><td><button class="btn btn-edit" onclick="undoReturn(${i})">Undo Return</button></td></tr>`;
+        }).join('');
+        renderPg(retArr.length, 'ret', 'pg-ret');
+
+        // Deleted
+        let delArr = db.deleted.map((d, i) => ({d, i}));
+        let pDel = getPaginated(delArr, 'del');
+        document.getElementById('deletedBody').innerHTML = pDel.map(({d, i}) => `<tr><td>${d.type}</td><td>${d.ref}</td><td>${d.date}</td><td><button class="btn btn-edit" onclick="undoDelete(${i})">Undo Delete</button></td></tr>`).join('');
+        renderPg(delArr.length, 'del', 'pg-del');
+
+        // Tax
+        const fTaxYr = document.getElementById('fTaxYear').value;
+        let taxArr = db.tax.map((t, i) => ({t, i})).filter(({t}) => !fTaxYr || t.year === fTaxYr);
+        let pTax = getPaginated(taxArr, 'tax');
+        document.getElementById('taxBody').innerHTML = pTax.map(({t, i}) => `<tr><td>${t.year}</td><td>${t.date}</td><td>${t.slip}</td><td>Rs. ${t.amt.toFixed(2)}</td><td><img src="${t.img}" class="thumb" onclick="openLightbox(this.src)"></td><td><button class="btn btn-edit" onclick="editTax(${i})">Edit</button> <button class="btn btn-del" onclick="deleteTax(${i})">X</button></td></tr>`).join('');
+        renderPg(taxArr.length, 'tax', 'pg-tax');
+
+        // Progress Calculation (With Historical Pricing Support)
+        const now = new Date();
+        const mSales = db.sales.filter(s => new Date(s.date).getMonth() === now.getMonth()).reduce((a,b)=>a+b.grand, 0);
+        const ySales = db.sales.filter(s => new Date(s.date).getFullYear() === now.getFullYear()).reduce((a,b)=>a+b.grand, 0);
+        const totalAdv = db.sales.reduce((a,b)=> a + (b.adv || 0), 0) + db.orders.reduce((a,b)=> a + (b.adv || 0), 0);
+        document.getElementById('statMonthly').innerText = "Rs. " + mSales.toFixed(2);
+        document.getElementById('statYearly').innerText = "Rs. " + ySales.toFixed(2);
+        document.getElementById('statAdv').innerText = "Rs. " + totalAdv.toFixed(2);
+
+        let itemStats = {}; let monthlyProfit = 0; let yearlyProfit = 0;
+        db.sales.forEach(s => {
+            const isMonthly = new Date(s.date).getMonth() === now.getMonth();
+            const isYearly = new Date(s.date).getFullYear() === now.getFullYear();
+            (s.items||[]).forEach(it => {
+                const itemRef = db.items.find(x => x.name === it.n) || { cost: 0 };
+                // Historical Cost check: If 'it' has 'c' (saved cost), use it. Otherwise use current DB cost.
+                const pastCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
+                const pastPrice = parseFloat(it.p || 0);
+                const totalItProfit = (pastPrice - pastCost) * parseFloat(it.q || 0);
+                
+                if(!itemStats[it.n]) itemStats[it.n] = { qty: 0, rev: 0, cost: 0, profit: 0 };
+                itemStats[it.n].qty += it.q; 
+                itemStats[it.n].rev += (it.q * pastPrice); 
+                itemStats[it.n].cost += (it.q * pastCost); 
+                itemStats[it.n].profit += totalItProfit;
+                
+                if(isMonthly) monthlyProfit += totalItProfit; 
+                if(isYearly) yearlyProfit += totalItProfit;
+            });
+        });
+
+        document.getElementById('p2Monthly').innerText = "Rs. " + monthlyProfit.toFixed(2);
+        document.getElementById('p2Yearly').innerText = "Rs. " + yearlyProfit.toFixed(2);
+        
+        document.getElementById('p2ItemStatsGrid').innerHTML = Object.keys(itemStats).map(name => `<div class="box" style="border-left: 5px solid #8e44ad; background: white;"><strong>${name}</strong><br>Sold Qty: ${itemStats[name].qty}<br>Total Profit: Rs. ${itemStats[name].profit.toFixed(2)}</div>`).join('');
+        
+        let profitArr = Object.keys(itemStats).map(name => ({name, stat: itemStats[name]}));
+        let pProfit = getPaginated(profitArr, 'profit');
+        document.getElementById('p2ItemBody').innerHTML = pProfit.map(p => `<tr><td>${p.name}</td><td>${p.stat.qty}</td><td>${p.stat.rev.toFixed(2)}</td><td>${p.stat.cost.toFixed(2)}</td><td style="font-weight:bold; color:var(--accent);">Rs. ${p.stat.profit.toFixed(2)}</td></tr>`).join('');
+        renderPg(profitArr.length, 'profit', 'pg-profit');
+
+        document.getElementById('itemStatsGrid').innerHTML = Object.keys(itemStats).map(name => `<div class="box" style="border-left: 5px solid var(--info); background: white;"><strong>${name}</strong><br>Sold Qty: ${itemStats[name].qty}<br>Revenue: Rs. ${itemStats[name].rev.toFixed(2)}</div>`).join('');
+    
+        renderProfitChart(); 
+    }
+
+    function resetFilters() { 
+        if(document.getElementById('fShop')) document.getElementById('fShop').value = ""; 
+        if(document.getElementById('fFinShop')) document.getElementById('fFinShop').value = ""; 
+        if(document.getElementById('fFinPayShop')) document.getElementById('fFinPayShop').value = ""; 
+        if(document.getElementById('fOverdueShop')) document.getElementById('fOverdueShop').value = ""; 
+        if(document.getElementById('fEbType')) document.getElementById('fEbType').value = ""; 
+        if(document.getElementById('fEbMethod')) document.getElementById('fEbMethod').value = ""; 
+        if(document.getElementById('fEbPayee')) document.getElementById('fEbPayee').value = ""; 
+        filterRender('penPay'); filterRender('finPay'); filterRender('finOrders'); filterRender('overdue'); filterRender('ebook'); 
+    }
+    
+    // BACKUP FUNCTION (Downloads Local File AND Updates Cloud Backup)
+    function exportData() { 
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db)); 
+        const a = document.createElement('a'); 
+        a.setAttribute("href", dataStr); 
+        a.setAttribute("download", "yenuflex_v6_backup.json"); 
+        a.click(); 
+        
+        // Ensure cloud is also updated
+        if (typeof window.cloud_sync === "function") {
+            window.cloud_sync(db);
+        }
+    }
+    
+    // RESTORE FUNCTION (Loads File, Saves to Local Storage AND Updates Cloud)
+    function importData(e) { 
+        const reader = new FileReader(); 
+        reader.onload = (x) => { 
+            try {
+                let parsed = JSON.parse(x.target.result);
+                if(parsed) {
+                    db = parsed;
+                    sync(); // This calls local storage set AND cloud_sync(db) 
+                    alert("Data Restored and Synced Successfully!");
+                }
+            } catch(err) {
+                alert("Invalid Backup File!");
+            }
+        }; 
+        reader.readAsText(e.target.files[0]); 
+    }
+    
+    // Login Persistence on Refresh using sessionStorage
+    window.onload = () => {
+        if(sessionStorage.getItem('isLoggedIn') === 'true') {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+            resetIdleTimer(); // Start the timer on refresh if already logged in
+        } else {
+            // Force show login if not explicitly logged in this session
+            document.getElementById('login-overlay').style.display = 'flex';
+            document.getElementById('main-app').style.display = 'none';
+        }
+        render();
+    };
+</script>
+</body>
+</html>
