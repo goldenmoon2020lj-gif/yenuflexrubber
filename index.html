@@ -29,7 +29,7 @@
   onValue(dataRef, (snapshot) => {
       const cloudData = snapshot.val();
       // Main script එකේ function එක call කර db යාවත්කාලීන කිරීම (Scope Fix)
-      if (cloudData && typeof window.syncFromCloud === "function") {
+      if (typeof window.syncFromCloud === "function") {
           window.syncFromCloud(cloudData);
       }
   });
@@ -451,12 +451,28 @@
         </div>
 
         <div class="box">
-            <h3>Item-wise Profit Summary</h3>
-            <div id="p2ItemStatsGrid" class="grid"></div>
-        </div>
-
-        <div class="box">
-            <h3>Item-wise Profit Analysis (Table view)</h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <h3 style="margin:0;">Item-wise Profit Analysis (Table view)</h3>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <label style="font-weight:bold;">Year:</label> <select id="profitTableYear" onchange="render()"></select>
+                    <label style="font-weight:bold;">Month:</label> 
+                    <select id="profitTableMonth" onchange="render()">
+                        <option value="all">-- All Months --</option>
+                        <option value="0">January</option>
+                        <option value="1">February</option>
+                        <option value="2">March</option>
+                        <option value="3">April</option>
+                        <option value="4">May</option>
+                        <option value="5">June</option>
+                        <option value="6">July</option>
+                        <option value="7">August</option>
+                        <option value="8">September</option>
+                        <option value="9">October</option>
+                        <option value="10">November</option>
+                        <option value="11">December</option>
+                    </select>
+                </div>
+            </div>
             <button class="btn btn-pdf" onclick="downloadPDF('tbl-profit', 'Profit Progress Report')">📄 DOWNLOAD PROFIT PROGRESS (PDF)</button>
             <table id="tbl-profit">
                 <thead>
@@ -469,6 +485,7 @@
                     </tr>
                 </thead>
                 <tbody id="p2ItemBody"></tbody>
+                <tfoot id="p2ItemFoot" style="font-weight:bold; background:#e3f2fd; color:#2c3e50;"></tfoot>
             </table>
             <div id="pg-profit"></div>
         </div>
@@ -633,6 +650,7 @@
     document.getElementById('taxYear').innerHTML = yrHtml;
     document.getElementById('fTaxYear').innerHTML = `<option value="">-- All Years --</option>` + yrHtml;
     document.getElementById('profitYearSelect').innerHTML = yrHtml; 
+    document.getElementById('profitTableYear').innerHTML = yrHtml; 
 
     function downloadPDF(tableId, title) {
         const { jsPDF } = window.jspdf;
@@ -701,23 +719,28 @@
         render(); 
     }
 
-    // මෙම Function එක මගින් Firebase හරහා එන දත්ත Local System එකට Update කර Refresh කරයි (Multi-Device Sync Fix)
+    // වෙනත් Device එකකින් හෝ Cloud එකෙන් එන Data Update කිරීම (Handles Null/Empty properly on Reset)
     window.syncFromCloud = function(cloudData) {
-        if(cloudData) {
-            db = cloudData;
-            db.shops = db.shops || [];
-            db.items = db.items || [];
-            db.orders = db.orders || [];
-            db.sales = db.sales || [];
-            db.returns = db.returns || [];
-            db.deleted = db.deleted || [];
-            db.tax = db.tax || [];
-            db.transactions = db.transactions || [];
-            
-            localStorage.setItem('YENUFLEX_ERP_V6', JSON.stringify(db));
-            if (typeof render === "function") render(); 
-        }
+        db = cloudData || { shops: [], items: [], orders: [], sales: [], returns: [], deleted: [], tax: [], transactions: [] };
+        db.shops = db.shops || [];
+        db.items = db.items || [];
+        db.orders = db.orders || [];
+        db.sales = db.sales || [];
+        db.returns = db.returns || [];
+        db.deleted = db.deleted || [];
+        db.tax = db.tax || [];
+        db.transactions = db.transactions || [];
+        
+        localStorage.setItem('YENUFLEX_ERP_V6', JSON.stringify(db));
+        if (typeof render === "function") render(); 
     };
+
+    // Offline යද්දි කරපු වෙනස්කම් Online ආවම Cloud එකට යැවීම
+    window.addEventListener('online', function() {
+        if(sessionStorage.getItem('isLoggedIn') === 'true') {
+            sync(); 
+        }
+    });
 
     // --- PASSWORD PROTECTED RESET SYSTEM ---
     function resetSystemData() {
@@ -725,10 +748,11 @@
         if (pwd === null) return; // User clicked cancel
         
         if (pwd === "YENU@123") {
+            exportData(); // Backup Download වෙනවා මුලින්ම
             db = { shops: [], items: [], orders: [], sales: [], returns: [], deleted: [], tax: [], transactions: [] };
             localStorage.removeItem('YENUFLEX_ERP_V6'); 
-            sync();
-            alert("System Data Reset Successfully!");
+            sync(); // Empty Data ටික Cloud එකට ගිහින් අනික් Devices වලත් Real-time Reset වෙනවා
+            alert("System Data Reset Successfully & Backup Downloaded!");
         } else {
             alert("Error Password! පද්ධතිය Reset කිරීම ප්‍රතික්ෂේප කර ඇත.");
         }
@@ -828,7 +852,6 @@
         document.getElementById('ordChkDate').style.display = isCheque ? 'block' : 'none';
     }
 
-    // IMPORTANT UPDATE: Saving Cost history lock to the order
     function saveOrder() {
         const items = [];
         document.querySelectorAll('#ordItemsList > div').forEach(r => {
@@ -837,7 +860,7 @@
                 // Get current cost and lock it into the order for historical accuracy
                 const itData = db.items.find(x => x.name === n);
                 const currentCost = itData ? (itData.cost || 0) : 0;
-                items.push({n: n, q: q, p: p, c: currentCost}); // 'c' stores the historical cost
+                items.push({n: n, q: q, p: p, c: currentCost}); 
             }
         });
         if(items.length === 0) return alert("Add items!");
@@ -933,7 +956,7 @@
 
         document.getElementById('p-shop-name').innerText = s.shop;
         document.getElementById('p-shop-addr').innerText = sh.loc || "";
-        document.getElementById('p-shop-tel').innerText = sh.p1 || ""; // Displays WA Number on the bill
+        document.getElementById('p-shop-tel').innerText = sh.p1 || ""; 
         document.getElementById('p-inv').innerText = s.inv;
         document.getElementById('p-date').innerText = s.date;
         document.getElementById('p-body').innerHTML = (s.items||[]).map(it => `<tr><td style="border:1px solid #000; padding:12px;">${it.n}</td><td style="border:1px solid #000; padding:12px; text-align:center;">${it.p} x ${it.q}</td><td style="border:1px solid #000; padding:12px; text-align:right;">${(it.q*it.p).toFixed(2)}</td></tr>`).join('');
@@ -1007,13 +1030,11 @@
         sync();
     }
 
-    // Advanced Return Implementation
     function openRetModal(idx) {
         document.getElementById('retModalIdx').value = idx;
         const s = db.sales[idx];
         const itemSelect = document.getElementById('retModalItem');
         
-        // Show only items that have quantity > 0
         const validItems = (s.items||[]).filter(it => it.q > 0);
         if(validItems.length === 0) {
             alert("No items available to return in this invoice.");
@@ -1055,12 +1076,10 @@
         const it = s.items.find(x => x.n === itemName);
         if(retQty > it.q) return alert(`Maximum return quantity is ${it.q}`);
 
-        // Update item quantity and sale grand total
         it.q -= retQty;
         const refundValue = retQty * it.p;
         s.grand -= refundValue;
 
-        // Log the return
         if(!db.returns) db.returns = [];
         db.returns.push({
             shop: s.shop,
@@ -1072,7 +1091,6 @@
             value: refundValue
         });
 
-        // Update Status
         const bal = s.grand - (s.adv||0) - (s.paid||0);
         if(bal <= 0) s.status = 'Finished';
         else s.status = 'Pending'; 
@@ -1085,7 +1103,6 @@
         if(confirm("Undo this return?")) { 
             const r = db.returns[i]; 
             if(r.itemName) {
-                // New logic restore
                 const s = db.sales.find(x => x.inv === r.inv);
                 if(s) {
                     const it = s.items.find(x => x.n === r.itemName);
@@ -1096,7 +1113,6 @@
                     }
                 }
             } else {
-                // Old legacy restore
                 const retData = db.returns[i]; delete retData.reason; delete retData.retQty; delete retData.retDate; db.sales.push(retData); 
             }
             db.returns.splice(i, 1); 
@@ -1137,7 +1153,6 @@
 
     function updateMsgNumbers() {
         const sel = document.getElementById('msgShopSelect').value; const s = db.shops.find(x => x.name === sel);
-        // Display Normal number first for SMS, WA number second
         if(s) document.getElementById('msgNumSelect').innerHTML = `<option value="${s.p2}">${s.p2} (Normal)</option><option value="${s.p1}">${s.p1} (WhatsApp)</option>`;
     }
     function sendSMS() {
@@ -1157,7 +1172,7 @@
         let itemText = (s.items||[]).map(it => `${it.n} - Rs.${it.p} x ${it.q} = Rs.${(it.p*it.q).toFixed(2)}`).join('\n');
         const bal = s.grand - (s.adv||0) - (s.paid||0);
         const msg = `*YENUFLEX RUBBER PRODUCTS*\n----------------------\n*Invoice No:* ${s.inv}\n*Date:* ${s.date}\n*Shop:* ${s.shop}\n----------------------\n*Items:*\n${itemText}\n----------------------\n*Sub Total:* Rs. ${s.grand.toFixed(2)}\n*Advance:* Rs. ${(s.adv||0).toFixed(2)}\n*Paid:* Rs. ${(s.paid||0).toFixed(2)}\n*Balance:* Rs. ${bal.toFixed(2)}\n----------------------\nThank you!`;
-        window.open(`https://wa.me/${sh.p1}?text=${encodeURIComponent(msg)}`); // Uses sh.p1 (WhatsApp Number)
+        window.open(`https://wa.me/${sh.p1}?text=${encodeURIComponent(msg)}`); 
     }
 
     window.sendOverdueWA = function(idx) {
@@ -1183,10 +1198,9 @@
         let itemText = (s.items||[]).map(it => `${it.n} (${it.q})`).join(', ');
 
         const msg = `*YENUFLEX RUBBER PRODUCTS*\n🚨 *ගෙවීම් සිහිකැඳවීමයි* 🚨\n\nහිතවත් ${s.shop},\nඔබගේ බිල්පත් අංක *${s.inv}* (දිනය: ${s.date}) සඳහා ගෙවීමට ඇති ශේෂය දින ${diffDays} කින් ප්‍රමාද වී ඇත.\n\n*ලබාගත් භාණ්ඩ:* ${itemText}\n*සම්පූර්ණ මුදල:* රු. ${s.grand.toFixed(2)}\n*මෙතෙක් ගෙවා ඇති මුදල:* රු. ${( (s.adv||0) + (s.paid||0) ).toFixed(2)}\n*අවසාන ගෙවීම:* ${lastPayText}\n\n❗️ *ගෙවීමට ඉතිරි ශේෂය:* රු. ${bal.toFixed(2)}\n\nකරුණාකර මෙම හිඟ මුදල හැකි ඉක්මනින් ගෙවා නිම කරන මෙන් කාරුණිකව සිහිපත් කරමු.\nස්තූතියි.`;
-        window.open(`https://wa.me/${sh.p1}?text=${encodeURIComponent(msg)}`); // Uses sh.p1 (WhatsApp Number)
+        window.open(`https://wa.me/${sh.p1}?text=${encodeURIComponent(msg)}`); 
     }
 
-    // UPDATED: Now sends to sh.p1 (WhatsApp Number) instead of sh.p2
     window.sendOverdueSMS = function(idx) {
         const s = db.sales[idx];
         const sh = db.shops.find(x => x.name === s.shop);
@@ -1204,7 +1218,7 @@
         }
 
         const msg = `YENUFLEX: Reminder for Inv ${s.inv} (${s.date}). Overdue by ${diffDays} days. Total: Rs.${s.grand}, Paid: Rs.${((s.adv||0)+(s.paid||0))}. Last Pay: ${lastPayText}. BALANCE DUE: Rs.${bal}. Please arrange payment ASAP. Thanks.`;
-        window.open(`sms:${sh.p1}?body=${encodeURIComponent(msg)}`); // Uses sh.p1 (WhatsApp Number)
+        window.open(`sms:${sh.p1}?body=${encodeURIComponent(msg)}`); 
     }
 
     function toggleEbOnline() {
@@ -1243,7 +1257,6 @@
         sync();
     }
 
-    // Pagination Helpers
     function getPaginated(arr, key) {
         const max = Math.ceil(arr.length / PAGE_LIMIT) || 1;
         if (curPage[key] > max) curPage[key] = max;
@@ -1288,7 +1301,6 @@
                 const month = saleDate.getMonth(); 
                 (s.items||[]).forEach(it => {
                     const itemRef = db.items.find(x => x.name === it.n) || { cost: 0 };
-                    // Historical Cost calculation: Uses saved order cost if exists, else current cost
                     const pastCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
                     monthlyProfit[month] += (it.p - pastCost) * it.q;
                 });
@@ -1353,10 +1365,7 @@
     function sendNextWA() {
         const msg = document.getElementById('bulkMsgBody').value.trim();
         const shop = waBroadcastList[waCurrentIdx];
-        
-        // WhatsApp Web URL (Always uses sh.p1 - WhatsApp Number)
         window.open(`https://wa.me/${shop.p1}?text=${encodeURIComponent(msg)}`, '_blank');
-        
         waCurrentIdx++;
         updateWaQueueUI();
     }
@@ -1365,7 +1374,6 @@
 
     // MAIN RENDER FUNCTION
     function render() {
-        // Prevent crashing if arrays are undefined
         db.shops = db.shops || []; db.items = db.items || []; db.orders = db.orders || []; 
         db.sales = db.sales || []; db.returns = db.returns || []; db.deleted = db.deleted || []; 
         db.tax = db.tax || []; db.transactions = db.transactions || [];
@@ -1381,7 +1389,6 @@
             if(r.itemName) {
                 returnTracker[r.itemName] = (returnTracker[r.itemName] || 0) + parseFloat(r.retQty || 0);
             } else if (r.items) {
-                // Legacy support
                 (r.items||[]).forEach(it => { returnTracker[it.n] = (returnTracker[it.n] || 0) + parseFloat(r.retQty || 0); }); 
             }
         });
@@ -1579,7 +1586,6 @@
             const isYearly = new Date(s.date).getFullYear() === now.getFullYear();
             (s.items||[]).forEach(it => {
                 const itemRef = db.items.find(x => x.name === it.n) || { cost: 0 };
-                // Historical Cost check: If 'it' has 'c' (saved cost), use it. Otherwise use current DB cost.
                 const pastCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
                 const pastPrice = parseFloat(it.p || 0);
                 const totalItProfit = (pastPrice - pastCost) * parseFloat(it.q || 0);
@@ -1598,12 +1604,43 @@
         document.getElementById('p2Monthly').innerText = "Rs. " + monthlyProfit.toFixed(2);
         document.getElementById('p2Yearly').innerText = "Rs. " + yearlyProfit.toFixed(2);
         
-        document.getElementById('p2ItemStatsGrid').innerHTML = Object.keys(itemStats).map(name => `<div class="box" style="border-left: 5px solid #8e44ad; background: white;"><strong>${name}</strong><br>Sold Qty: ${itemStats[name].qty}<br>Total Profit: Rs. ${itemStats[name].profit.toFixed(2)}</div>`).join('');
-        
-        let profitArr = Object.keys(itemStats).map(name => ({name, stat: itemStats[name]}));
+        // Item-Wise Profit Table logic - Grouped By Month
+        let ptYear = parseInt(document.getElementById('profitTableYear') ? document.getElementById('profitTableYear').value : new Date().getFullYear());
+        let ptMonthStr = document.getElementById('profitTableMonth') ? document.getElementById('profitTableMonth').value : 'all';
+
+        let itemStatsTable = {};
+        let tRev = 0, tCost = 0, tProfit = 0;
+
+        db.sales.forEach(s => {
+            const sDate = new Date(s.date);
+            if (sDate.getFullYear() === ptYear) {
+                if (ptMonthStr === 'all' || sDate.getMonth() === parseInt(ptMonthStr)) {
+                    (s.items||[]).forEach(it => {
+                        const itemRef = db.items.find(x => x.name === it.n) || { cost: 0 };
+                        const pastCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
+                        const pastPrice = parseFloat(it.p || 0);
+                        const totalItProfit = (pastPrice - pastCost) * parseFloat(it.q || 0);
+                        
+                        if(!itemStatsTable[it.n]) itemStatsTable[it.n] = { qty: 0, rev: 0, cost: 0, profit: 0 };
+                        itemStatsTable[it.n].qty += it.q; 
+                        itemStatsTable[it.n].rev += (it.q * pastPrice); 
+                        itemStatsTable[it.n].cost += (it.q * pastCost); 
+                        itemStatsTable[it.n].profit += totalItProfit;
+
+                        tRev += (it.q * pastPrice);
+                        tCost += (it.q * pastCost);
+                        tProfit += totalItProfit;
+                    });
+                }
+            }
+        });
+
+        let profitArr = Object.keys(itemStatsTable).map(name => ({name, stat: itemStatsTable[name]}));
         let pProfit = getPaginated(profitArr, 'profit');
         document.getElementById('p2ItemBody').innerHTML = pProfit.map(p => `<tr><td>${p.name}</td><td>${p.stat.qty}</td><td>${p.stat.rev.toFixed(2)}</td><td>${p.stat.cost.toFixed(2)}</td><td style="font-weight:bold; color:var(--accent);">Rs. ${p.stat.profit.toFixed(2)}</td></tr>`).join('');
+        document.getElementById('p2ItemFoot').innerHTML = `<tr><td colspan="2">MONTH/YEAR TOTAL</td><td>Rs. ${tRev.toFixed(2)}</td><td>Rs. ${tCost.toFixed(2)}</td><td>Rs. ${tProfit.toFixed(2)}</td></tr>`;
         renderPg(profitArr.length, 'profit', 'pg-profit');
+
 
         document.getElementById('itemStatsGrid').innerHTML = Object.keys(itemStats).map(name => `<div class="box" style="border-left: 5px solid var(--info); background: white;"><strong>${name}</strong><br>Sold Qty: ${itemStats[name].qty}<br>Revenue: Rs. ${itemStats[name].rev.toFixed(2)}</div>`).join('');
     
