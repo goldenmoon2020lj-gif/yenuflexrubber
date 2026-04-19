@@ -454,14 +454,23 @@
         </div>
         <button class="btn btn-pdf" onclick="downloadPDF('tbl-orders', 'Pending Orders Report')">📄 DOWNLOAD PENDING ORDERS (PDF)</button>
         <table id="tbl-orders"><thead><tr><th>#</th><th>Order Date</th><th>Target Date</th><th>Shop</th><th>Order Details</th><th>Advance</th><th>Action</th></tr></thead><tbody id="orderBody"></tbody></table>
+        <h3 style="text-align: right; color: var(--info); margin-top: 15px;">Total Pending Value: Rs. <span id="pendOrdTotalVal">0.00</span></h3>
         <div id="pg-orders"></div>
     </div>
 
     <div id="finished" class="tab-content">
-        <div class="box">
-             🔍 Filter by Shop: <input list="globalShopOptions" id="fFinShop" placeholder="Type Shop Name to Filter..." oninput="filterRender('finOrders')">
+        <div class="box" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+             <strong>🔍 Filter by Shop:</strong> 
+             <input list="globalShopOptions" id="fFinShop" placeholder="Type Shop Name to Filter..." oninput="filterRender('finOrders')">
+             <strong>🔄 Sort:</strong>
+             <select id="sortFinOrd" onchange="filterRender('finOrders')">
+                 <option value="date-desc">Date: Newest First</option>
+                 <option value="date-asc">Date: Oldest First</option>
+                 <option value="shop-az">Shop Name: A - Z</option>
+                 <option value="shop-za">Shop Name: Z - A</option>
+             </select>
         </div>
-        <table id="tbl-finished"><thead><tr><th>#</th><th>Shop</th><th>Items (Price x Qty)</th><th>Total Value</th><th>Delivery Status</th><th>Invoice Action</th></tr></thead><tbody id="finBody"></tbody></table>
+        <table id="tbl-finished"><thead><tr><th>#</th><th>Shop</th><th>Order Date</th><th>Target Date</th><th>Items (Price x Qty)</th><th>Total Value</th><th>Delivery Status</th><th>Invoice Action</th></tr></thead><tbody id="finBody"></tbody></table>
         <div id="pg-finOrders"></div>
     </div>
 
@@ -471,9 +480,10 @@
             <div class="grid">
                 <div>Invoice #: <input type="text" id="salInv" readonly></div>
                 <div>Shop: <input list="globalShopOptions" id="salShopSelect" placeholder="Type Shop Name..."></div>
+                <div>Order Date: <input type="text" id="salOrdDate" readonly style="background:#ecf0f1; border:1px solid #ccc;"></div>
                 <div>Payment Received Now: <input type="number" id="salPay" placeholder="Amount (Rs.)"></div>
                 <div>Method: <select id="salPayMethod" onchange="toggleSalPayMethod()"><option value="Cash">Cash</option><option value="Online">Online</option><option value="Cheque">Cheque</option></select></div>
-                <div>Date: <input type="date" id="salDate"></div>
+                <div>Invoice Date: <input type="date" id="salDate"></div>
                 <input type="text" id="salChkNo" placeholder="Cheque Number" style="display:none;">
                 <input type="date" id="salChkDate" style="display:none;">
             </div>
@@ -630,6 +640,10 @@
     </div>
 
     <div id="progress" class="tab-content">
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 15px; align-items: center;">
+            <strong>📅 Select Year:</strong>
+            <select id="fProgYear" onchange="render()" style="width: auto; margin-top: 0; padding: 8px;"></select>
+        </div>
         <div class="grid">
             <div class="box" style="text-align:center;"><h3>Monthly Sales</h3><h2 id="statMonthly" style="color:var(--accent);">Rs. 0.00</h2></div>
             <div class="box" style="text-align:center;"><h3>Yearly Sales</h3><h2 id="statYearly" style="color:var(--accent);">Rs. 0.00</h2></div>
@@ -845,11 +859,10 @@
     for(let y=2021; y<=2061; y++) yrHtml += `<option value="${y}" ${y === currentYr ? 'selected' : ''}>${y}</option>`;
     document.getElementById('taxYear').innerHTML = yrHtml;
     document.getElementById('fTaxYear').innerHTML = `<option value="">-- All Years --</option>` + yrHtml;
-    document.getElementById('profitYearSelect').innerHTML = yrHtml; 
 
     // New 2021-2061 Year Filter Generation
     let fullYrHtml = '<option value="">-- All Years --</option>';
-    for(let y=2021; y<=2061; y++) fullYrHtml += `<option value="${y}">${y}</option>`;
+    for(let y=2021; y<=2060; y++) fullYrHtml += `<option value="${y}">${y}</option>`;
     if(document.getElementById('fMouldYear')) document.getElementById('fMouldYear').innerHTML = fullYrHtml;
     if(document.getElementById('fPenPayYear')) document.getElementById('fPenPayYear').innerHTML = fullYrHtml;
     if(document.getElementById('fFinPayYear')) document.getElementById('fFinPayYear').innerHTML = fullYrHtml;
@@ -857,6 +870,8 @@
     if(document.getElementById('fEbYear')) document.getElementById('fEbYear').innerHTML = fullYrHtml;
     if(document.getElementById('fMtYear')) document.getElementById('fMtYear').innerHTML = fullYrHtml; // Maintenance Year
     if(document.getElementById('fWdYear')) document.getElementById('fWdYear').innerHTML = fullYrHtml; // Withdrawals Year
+    if(document.getElementById('fProgYear')) document.getElementById('fProgYear').innerHTML = fullYrHtml; // Progress Tab
+    if(document.getElementById('profitYearSelect')) document.getElementById('profitYearSelect').innerHTML = fullYrHtml; // Profit Tab
 
     function downloadPDF(tableId, title) {
         const { jsPDF } = window.jspdf;
@@ -1373,6 +1388,7 @@
         document.getElementById('salInv').value = "INV-" + (1000 + db.sales.length);
         document.getElementById('salDate').value = new Date().toISOString().substr(0,10);
         document.getElementById('salShopSelect').value = activeInvOrder.shop;
+        document.getElementById('salOrdDate').value = activeInvOrder.date; // REQ 03: Order Date
         document.getElementById('inv-creator').style.display = 'block'; changeTab('pending-pay'); window.scrollTo(0,0);
     }
 
@@ -1770,6 +1786,7 @@
 
     function renderProfitChart(monthlyProfitData) {
         const year = parseInt(document.getElementById('profitYearSelect').value) || new Date().getFullYear();
+        const yearLabel = document.getElementById('profitYearSelect').value ? year : 'All Years';
         
         if (profitChartInstance) profitChartInstance.destroy();
         const ctx = document.getElementById('profitChartCanvas').getContext('2d');
@@ -1777,7 +1794,7 @@
             type: 'bar',
             data: {
                 labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                datasets: [{ label: `Monthly Profit for ${year} (Rs)`, data: monthlyProfitData, backgroundColor: '#8e44ad', borderColor: '#2980b9', borderWidth: 1 }]
+                datasets: [{ label: `Monthly Profit for ${yearLabel} (Rs)`, data: monthlyProfitData, backgroundColor: '#8e44ad', borderColor: '#2980b9', borderWidth: 1 }]
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
@@ -2040,14 +2057,24 @@
 
         // Pending Orders
         let pendingOrdersList = sortedOrders.filter(o => o.status === 'Pending');
+        let totalPendOrdVal = pendingOrdersList.reduce((acc, o) => acc + (o.items||[]).reduce((a,b)=>a+(b.p*b.q),0), 0);
+        if(document.getElementById('pendOrdTotalVal')) document.getElementById('pendOrdTotalVal').innerText = fmtNum(totalPendOrdVal);
+        
         let pPendOrd = getPaginated(pendingOrdersList, 'orders');
         document.getElementById('orderBody').innerHTML = pPendOrd.map((o, index) => { const realIdx = db.orders.indexOf(o); return `<tr><td>${(curPage['orders']-1)*PAGE_LIMIT + index + 1}</td><td>${o.date}</td><td>${o.targetDate}</td><td>${o.shop}</td><td>${(o.items||[]).map(x=>`${x.n}(${fmtNum(x.p)}x${x.q})`).join(', ')}</td><td>${fmtNum(o.adv)} (${o.advMethod||'Cash'})</td><td><button class="btn btn-info" onclick="db.orders[${realIdx}].status='Finished';sync()">Finish</button></td></tr>`; }).join('');
         renderPg(pendingOrdersList.length, 'orders', 'pg-orders');
 
         // Finished Orders
-        let finOrdersList = sortedOrders.filter(o => o.status === 'Finished' && (!fs1_val || o.shop === fs1_val));
+        let sortFinOrdVal = document.getElementById('sortFinOrd') ? document.getElementById('sortFinOrd').value : 'date-desc';
+        let finOrdersList = db.orders.filter(o => o.status === 'Finished' && (!fs1_val || o.shop === fs1_val));
+        
+        if(sortFinOrdVal === 'date-desc') finOrdersList.sort((a,b) => new Date(b.date) - new Date(a.date));
+        else if(sortFinOrdVal === 'date-asc') finOrdersList.sort((a,b) => new Date(a.date) - new Date(b.date));
+        else if(sortFinOrdVal === 'shop-az') finOrdersList.sort((a,b) => a.shop.localeCompare(b.shop));
+        else if(sortFinOrdVal === 'shop-za') finOrdersList.sort((a,b) => b.shop.localeCompare(a.shop));
+
         let pFinOrd = getPaginated(finOrdersList, 'finOrders');
-        document.getElementById('finBody').innerHTML = pFinOrd.map((o, index) => { const realIdx = db.orders.indexOf(o); return `<tr><td>${(curPage['finOrders']-1)*PAGE_LIMIT + index + 1}</td><td>${o.shop}</td><td>${(o.items||[]).map(x=>`${x.n}(${fmtNum(x.p)}x${x.q})`).join(', ')}</td><td>${fmtNum((o.items||[]).reduce((a,b)=>a+(b.p*b.q),0))}</td><td>READY</td><td><button class="btn btn-save" onclick="openInvoiceCreator(${realIdx})">INVOICE</button></td></tr>`; }).join('');
+        document.getElementById('finBody').innerHTML = pFinOrd.map((o, index) => { const realIdx = db.orders.indexOf(o); return `<tr><td>${(curPage['finOrders']-1)*PAGE_LIMIT + index + 1}</td><td>${o.shop}</td><td>${o.date}</td><td>${o.targetDate}</td><td>${(o.items||[]).map(x=>`${x.n}(${fmtNum(x.p)}x${x.q})`).join(', ')}</td><td>${fmtNum((o.items||[]).reduce((a,b)=>a+(b.p*b.q),0))}</td><td>READY</td><td><button class="btn btn-save" onclick="openInvoiceCreator(${realIdx})">INVOICE</button></td></tr>`; }).join('');
         renderPg(finOrdersList.length, 'finOrders', 'pg-finOrders');
 
         // Pending Payments
@@ -2240,57 +2267,84 @@
 
         // Progress Calculation 
         const now = new Date();
-        const mSales = db.sales.filter(s => new Date(s.date).getMonth() === now.getMonth() && new Date(s.date).getFullYear() === now.getFullYear()).reduce((a,b)=>a+b.grand, 0);
-        const ySales = db.sales.filter(s => new Date(s.date).getFullYear() === now.getFullYear()).reduce((a,b)=>a+b.grand, 0);
-        const totalAdv = db.sales.reduce((a,b)=> a + (b.adv || 0), 0) + db.orders.reduce((a,b)=> a + (b.adv || 0), 0);
+        const progYearVal = document.getElementById('fProgYear') ? document.getElementById('fProgYear').value : "";
+        const currentMonth = now.getMonth();
+
+        let mSales = 0, ySales = 0, totalAdv = 0;
+        
+        db.sales.forEach(s => {
+            const sDate = new Date(s.date);
+            if(!progYearVal || sDate.getFullYear() == progYearVal) {
+                ySales += s.grand;
+                if(sDate.getMonth() === currentMonth) mSales += s.grand;
+            }
+        });
+
+        db.sales.forEach(s => {
+            if(!progYearVal || new Date(s.date).getFullYear() == progYearVal) totalAdv += (s.adv || 0);
+        });
+        db.orders.forEach(o => {
+            if(!progYearVal || new Date(o.date).getFullYear() == progYearVal) totalAdv += (o.adv || 0);
+        });
+
         document.getElementById('statMonthly').innerText = "Rs. " + fmtNum(mSales);
         document.getElementById('statYearly').innerText = "Rs. " + fmtNum(ySales);
         document.getElementById('statAdv').innerText = "Rs. " + fmtNum(totalAdv);
 
-        let itemStats = {}; let monthlyProfit = 0; let yearlyProfit = 0;
-        
-        const selectedYear = parseInt(document.getElementById('profitYearSelect').value) || now.getFullYear();
+        let itemStats = {}; 
+        db.sales.forEach(s => {
+            if(!progYearVal || new Date(s.date).getFullYear() == progYearVal) {
+                (s.items||[]).forEach(it => {
+                    if(!itemStats[it.n]) itemStats[it.n] = { qty: 0, rev: 0 };
+                    itemStats[it.n].qty += it.q; 
+                    itemStats[it.n].rev += (it.q * (parseFloat(it.p) || 0)); 
+                });
+            }
+        });
+        document.getElementById('itemStatsGrid').innerHTML = Object.keys(itemStats).map(name => `<div class="box" style="border-left: 5px solid var(--info); background: white;"><strong>${name}</strong><br>Sold Qty: ${itemStats[name].qty}<br>Revenue: Rs. ${fmtNum(itemStats[name].rev)}</div>`).join('');
+
+        // Progress 2 (Profit Calculations)
+        let monthlyProfit = 0; let yearlyProfit = 0;
+        const profYearVal = document.getElementById('profitYearSelect') ? document.getElementById('profitYearSelect').value : "";
         let p2MonthlyProfitMatrix = {}; 
         let globalMonthlyChartData = new Array(12).fill(0); 
+        let p2ItemStats = {};
 
         db.sales.forEach(s => {
             const saleDate = new Date(s.date);
             const sMonth = saleDate.getMonth();
             const sYear = saleDate.getFullYear();
             
-            const isMonthly = (sMonth === now.getMonth() && sYear === now.getFullYear());
-            const isYearly = (sYear === now.getFullYear());
+            const isYearMatch = (!profYearVal || sYear == profYearVal);
 
-            (s.items||[]).forEach(it => {
-                const itemRef = db.items.find(x => x.name === it.n) || { cost: 0 };
-                const pastCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
-                const pastPrice = parseFloat(it.p || 0);
-                const totalItProfit = (pastPrice - pastCost) * parseFloat(it.q || 0);
-                
-                if(!itemStats[it.n]) itemStats[it.n] = { qty: 0, rev: 0, cost: 0, profit: 0 };
-                itemStats[it.n].qty += it.q; 
-                itemStats[it.n].rev += (it.q * pastPrice); 
-                itemStats[it.n].cost += (it.q * pastCost); 
-                itemStats[it.n].profit += totalItProfit;
-                
-                if(isMonthly) monthlyProfit += totalItProfit; 
-                if(isYearly) yearlyProfit += totalItProfit;
+            if (isYearMatch) {
+                (s.items||[]).forEach(it => {
+                    const itemRef = db.items.find(x => x.name === it.n) || { cost: 0 };
+                    const pastCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
+                    const pastPrice = parseFloat(it.p || 0);
+                    const totalItProfit = (pastPrice - pastCost) * parseFloat(it.q || 0);
+                    
+                    yearlyProfit += totalItProfit;
+                    if(sMonth === currentMonth) monthlyProfit += totalItProfit;
 
-                if (sYear === selectedYear) {
+                    if(!p2ItemStats[it.n]) p2ItemStats[it.n] = { qty: 0, profit: 0 };
+                    p2ItemStats[it.n].qty += it.q;
+                    p2ItemStats[it.n].profit += totalItProfit;
+
                     if(!p2MonthlyProfitMatrix[it.n]) p2MonthlyProfitMatrix[it.n] = { months: new Array(12).fill(0), totalQty: 0, totalProfit: 0 };
                     p2MonthlyProfitMatrix[it.n].months[sMonth] += totalItProfit;
                     p2MonthlyProfitMatrix[it.n].totalQty += parseFloat(it.q || 0);
                     p2MonthlyProfitMatrix[it.n].totalProfit += totalItProfit;
                     
                     globalMonthlyChartData[sMonth] += totalItProfit;
-                }
-            });
+                });
+            }
         });
 
         document.getElementById('p2Monthly').innerText = "Rs. " + fmtNum(monthlyProfit);
         document.getElementById('p2Yearly').innerText = "Rs. " + fmtNum(yearlyProfit);
         
-        document.getElementById('p2ItemStatsGrid').innerHTML = Object.keys(itemStats).map(name => `<div class="box" style="border-left: 5px solid #8e44ad; background: white;"><strong>${name}</strong><br>Sold Qty: ${itemStats[name].qty}<br>Total Profit: Rs. ${fmtNum(itemStats[name].profit)}</div>`).join('');
+        document.getElementById('p2ItemStatsGrid').innerHTML = Object.keys(p2ItemStats).map(name => `<div class="box" style="border-left: 5px solid #8e44ad; background: white;"><strong>${name}</strong><br>Sold Qty: ${p2ItemStats[name].qty}<br>Total Profit: Rs. ${fmtNum(p2ItemStats[name].profit)}</div>`).join('');
         
         let profitArr = Object.keys(p2MonthlyProfitMatrix).map(name => ({name, stat: p2MonthlyProfitMatrix[name]}));
         profitArr.sort((a,b) => b.stat.totalProfit - a.stat.totalProfit);
@@ -2302,8 +2356,6 @@
             <td style="font-weight:bold; color:var(--accent); font-size:14px;">Rs. ${fmtNum(p.stat.totalProfit)}</td>
         </tr>`).join('');
         renderPg(profitArr.length, 'profit', 'pg-profit');
-
-        document.getElementById('itemStatsGrid').innerHTML = Object.keys(itemStats).map(name => `<div class="box" style="border-left: 5px solid var(--info); background: white;"><strong>${name}</strong><br>Sold Qty: ${itemStats[name].qty}<br>Revenue: Rs. ${fmtNum(itemStats[name].rev)}</div>`).join('');
     
         renderProfitChart(globalMonthlyChartData); 
     }
@@ -2326,11 +2378,14 @@
         if(document.getElementById('fEbYear')) document.getElementById('fEbYear').value = "";
         if(document.getElementById('fMtYear')) document.getElementById('fMtYear').value = ""; 
         if(document.getElementById('fWdYear')) document.getElementById('fWdYear').value = ""; 
+        if(document.getElementById('fProgYear')) document.getElementById('fProgYear').value = ""; 
+        if(document.getElementById('profitYearSelect')) document.getElementById('profitYearSelect').value = ""; 
 
         if(document.getElementById('sortMt')) document.getElementById('sortMt').value = "date-desc"; 
         if(document.getElementById('sortWd')) document.getElementById('sortWd').value = "date-desc"; 
+        if(document.getElementById('sortFinOrd')) document.getElementById('sortFinOrd').value = "date-desc"; 
 
-        filterRender('shops'); filterRender('items'); filterRender('penPay'); filterRender('finPay'); filterRender('finOrders'); filterRender('overdue'); filterRender('ebook'); filterRender('moulds'); filterRender('maintenance'); filterRender('withdrawals');
+        filterRender('shops'); filterRender('items'); filterRender('penPay'); filterRender('finPay'); filterRender('finOrders'); filterRender('overdue'); filterRender('ebook'); filterRender('moulds'); filterRender('maintenance'); filterRender('withdrawals'); filterRender('profit');
     }
     
     function exportData() { 
