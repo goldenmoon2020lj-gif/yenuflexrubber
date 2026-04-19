@@ -481,6 +481,7 @@
                 <div>Invoice #: <input type="text" id="salInv" readonly></div>
                 <div>Shop: <input list="globalShopOptions" id="salShopSelect" placeholder="Type Shop Name..."></div>
                 <div>Order Date: <input type="text" id="salOrdDate" readonly style="background:#ecf0f1; border:1px solid #ccc;"></div>
+                <div>Total Amount: <input type="text" id="salTotalAmt" readonly style="background:#ecf0f1; border:1px solid #ccc; font-weight:bold; color:var(--danger);"></div>
                 <div>Payment Received Now: <input type="number" id="salPay" placeholder="Amount (Rs.)"></div>
                 <div>Method: <select id="salPayMethod" onchange="toggleSalPayMethod()"><option value="Cash">Cash</option><option value="Online">Online</option><option value="Cheque">Cheque</option></select></div>
                 <div>Invoice Date: <input type="date" id="salDate"></div>
@@ -1389,6 +1390,11 @@
         document.getElementById('salDate').value = new Date().toISOString().substr(0,10);
         document.getElementById('salShopSelect').value = activeInvOrder.shop;
         document.getElementById('salOrdDate').value = activeInvOrder.date; // REQ 03: Order Date
+        
+        // NEW CALCULATION ADDED HERE
+        const total = activeInvOrder.items.reduce((a,b)=> a + (b.q * b.p), 0); 
+        document.getElementById('salTotalAmt').value = "Rs. " + fmtNum(total);
+
         document.getElementById('inv-creator').style.display = 'block'; changeTab('pending-pay'); window.scrollTo(0,0);
     }
 
