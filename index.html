@@ -4,6 +4,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBwRIlXHOYuuP0M9kFlwPHbTadEPs3uLik",
@@ -17,18 +18,51 @@
 
   const app = initializeApp(firebaseConfig);
   const cloudDB = getDatabase(app);
+  const auth = getAuth(app);
   const dataRef = ref(cloudDB, 'yenuflex_data');
 
-  window.cloud_sync = function(data) {
-      set(dataRef, data);
+  window.firebaseLogin = function(email, password) {
+      signInWithEmailAndPassword(auth, email, password)
+          .then((userCredential) => {
+              console.log("Login Successful!");
+          })
+          .catch((error) => {
+              alert("Email එක හෝ Password එක වැරදියි!");
+          });
   };
 
-  onValue(dataRef, (snapshot) => {
-      const cloudData = snapshot.val();
-      if (typeof window.syncFromCloud === "function") {
-          window.syncFromCloud(cloudData);
+  window.firebaseLogout = function() {
+      signOut(auth).then(() => {
+          sessionStorage.removeItem('isLoggedIn');
+          location.reload();
+      });
+  };
+
+  onAuthStateChanged(auth, (user) => {
+      if (user) {
+          sessionStorage.setItem('isLoggedIn', 'true');
+          document.getElementById('login-overlay').style.display = 'none';
+          document.getElementById('main-app').style.display = 'block';
+          
+          if(typeof window.initSystemUI === "function") window.initSystemUI();
+
+          onValue(dataRef, (snapshot) => {
+              const cloudData = snapshot.val();
+              if (typeof window.syncFromCloud === "function") {
+                  window.syncFromCloud(cloudData);
+              }
+          });
+      } else {
+          document.getElementById('login-overlay').style.display = 'flex';
+          document.getElementById('main-app').style.display = 'none';
       }
   });
+
+  window.cloud_sync = function(data) {
+      if (auth.currentUser) {
+          set(dataRef, data).catch(err => console.log("Firebase Save Error:", err));
+      }
+  };
 </script>
     <meta charset="UTF-8">
     <title>YENUFLEX ERP - PRO ADVANCED v6.0</title>
@@ -289,7 +323,7 @@
         <form onsubmit="event.preventDefault(); checkLogin();">
             <div class="input-group">
                 <input type="text" id="logUser" required>
-                <label>Username</label>
+                <label>Username (Email)</label>
             </div>
             <div class="input-group">
                 <input type="password" id="logPass" required>
@@ -470,7 +504,7 @@
                 <div>Category: <select id="shCat" style="margin-top:0;">
                     <option value="Company">Company</option>
                     <option value="Service Centers">Service Centers</option>
-                    <option value="Spare Parts">Spare Parts</option>
+                    <option value="Spare Parts Shop">Spare Parts Shop</option>
                     <option value="Spare Parts Dealers">Spare Parts Dealers</option>
                     <option value="Other">Other</option>
                 </select></div>
@@ -495,7 +529,7 @@
                 <option value="">All Categories</option>
                 <option value="Company">Company</option>
                 <option value="Service Centers">Service Centers</option>
-                <option value="Spare Parts">Spare Parts</option>
+                <option value="Spare Parts Shop">Spare Parts Shop</option>
                 <option value="Spare Parts Dealers">Spare Parts Dealers</option>
                 <option value="Other">Other</option>
             </select>
@@ -555,7 +589,7 @@
                     <option value="">All Categories</option>
                     <option value="Company">Company</option>
                     <option value="Service Centers">Service Centers</option>
-                    <option value="Spare Parts">Spare Parts</option>
+                    <option value="Spare Parts Shop">Spare Parts Shop</option>
                     <option value="Spare Parts Dealers">Spare Parts Dealers</option>
                     <option value="Other">Other</option>
                 </select></div>
@@ -896,7 +930,7 @@
                         <option value="">All Categories</option>
                         <option value="Company">Company</option>
                         <option value="Service Centers">Service Centers</option>
-                        <option value="Spare Parts">Spare Parts</option>
+                        <option value="Spare Parts Shop">Spare Parts Shop</option>
                         <option value="Spare Parts Dealers">Spare Parts Dealers</option>
                         <option value="Other">Other</option>
                     </select>
@@ -947,7 +981,7 @@
                         <option value="">All Categories</option>
                         <option value="Company">Company</option>
                         <option value="Service Centers">Service Centers</option>
-                        <option value="Spare Parts">Spare Parts</option>
+                        <option value="Spare Parts Shop">Spare Parts Shop</option>
                         <option value="Spare Parts Dealers">Spare Parts Dealers</option>
                         <option value="Other">Other</option>
                     </select>
@@ -1130,7 +1164,6 @@
     if(document.getElementById('profitYearSelect')) document.getElementById('profitYearSelect').innerHTML = fullYrHtml; 
     if(document.getElementById('fGrowthYear')) document.getElementById('fGrowthYear').innerHTML = fullYrHtml; 
 
-    // NEW FUNCTION - SMS WEBHOOK
     function sendSystemSMS(phoneNumber, smsText) {
         const webhookKey = "https://trigger.macrodroid.com/c628d124-30d8-4cc8-af2f-b1844deda410/sendsms";
         const finalUrl = `${webhookKey}?phone=${encodeURIComponent(phoneNumber)}&msg=${encodeURIComponent(smsText)}`;
@@ -1342,26 +1375,13 @@
     }
 
     function checkLogin() {
-        if(document.getElementById('logUser').value === "admin" && document.getElementById('logPass').value === "YENu@123") {
-            sessionStorage.setItem('isLoggedIn', 'true'); 
-            document.getElementById('login-overlay').style.display = 'none'; 
-            document.getElementById('main-app').style.display = 'block'; 
-            document.getElementById('logUser').value = ""; 
-            document.getElementById('logPass').value = "";
-            changeTab('growth'); 
-            resetIdleTimer(); 
-            initMap(); 
-            render();
-            if(typeof updateBulkSmsShops === 'function') updateBulkSmsShops();
-            if(typeof updateBulkWAShops === 'function') updateBulkWAShops();
-        } else { 
-            alert("Error: Unauthorized Access."); 
-        }
+        const email = document.getElementById('logUser').value;
+        const pass = document.getElementById('logPass').value;
+        window.firebaseLogin(email, pass);
     }
     
     function logout() { 
-        sessionStorage.removeItem('isLoggedIn'); 
-        location.reload(); 
+        window.firebaseLogout(); 
     }
     
     function sync() { 
@@ -3297,16 +3317,7 @@
     }
     
     window.onload = () => {
-        if(sessionStorage.getItem('isLoggedIn') === 'true') {
-            document.getElementById('login-overlay').style.display = 'none'; 
-            document.getElementById('main-app').style.display = 'block';
-            resetIdleTimer(); 
-            initMap(); 
-            changeTab('growth');
-        } else { 
-            document.getElementById('login-overlay').style.display = 'flex'; 
-            document.getElementById('main-app').style.display = 'none'; 
-        }
+        // UI එක පෙන්නන එක දැන් onAuthStateChanged එකෙන් බලාගනීවි
         updateNetworkStatus();
         render();
         if(typeof updateBulkSmsShops === 'function') updateBulkSmsShops();
