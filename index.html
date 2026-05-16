@@ -115,7 +115,7 @@
         .btn-del { background: var(--danger); }
         .btn-info { background: var(--info); }
         .btn-wa { background: var(--wa); }
-        .btn-pdf { background: #e74c3c; width: 100%; margin-top: 15px; }
+        .btn-pdf { background: #e74c3c; margin-top: 0; }
         .thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd; cursor: pointer; }
         
         #imgModal { display: none; position: fixed; z-index: 99999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); align-items: center; justify-content: center; cursor: zoom-out; }
@@ -176,15 +176,16 @@
         #invoice-card .items-table th:nth-child(4) { width: 20%; text-align: right; }
         #invoice-card .items-table th:nth-child(5) { width: 20%; text-align: right; }
         
-        /* TABLE TEXT FIX FOR PDF EXPORT */
         #invoice-card .items-table td { 
-            padding: 12px; 
+            padding: 8px 10px; 
             border-bottom: 1px solid #ddd; 
-            font-size: 15px; color: #000; 
+            font-size: 13px; color: #000; 
             word-wrap: break-word; 
+            word-break: break-word;
             overflow-wrap: break-word;
-            white-space: normal;
-            vertical-align: top;
+            white-space: pre-wrap; 
+            vertical-align: top; 
+            line-height: 1.4;
         }
         #invoice-card .items-table tr:nth-child(even) { background-color: #f9f9f9; }
         
@@ -200,14 +201,14 @@
         #invoice-card .signature-section { text-align: right; display: flex; flex-direction: column; justify-content: flex-end; }
 
         @media print { 
-            body * { visibility: hidden; }
-            #invoice-print-area, #invoice-print-area * { visibility: visible; }
-            #invoice-print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
-            @page { size: A4 portrait; margin: 10mm; }
-            #invoice-card { box-shadow: none; border: none; width: 100%; margin: 0; padding: 10px; border-top: 10px solid var(--inv-primary) !important; }
-            #invoice-card .items-table th { background-color: var(--inv-primary) !important; color: white !important; }
-            #invoice-card .info-grid { background-color: var(--inv-accent) !important; }
-            #invoice-card .grand-total { background-color: var(--inv-primary) !important; color: white !important; }
+            body.printing-invoice * { display: none !important; }
+            body.printing-invoice #temp-print-container, 
+            body.printing-invoice #temp-print-container * { display: block !important; }
+            
+            #temp-print-container { position: absolute; top: 0; left: 0; width: 100%; text-align: center; }
+            #temp-print-container img { width: 100%; max-width: 200mm; max-height: 280mm; object-fit: contain; margin: 0 auto; }
+            
+            @page { size: A4 portrait; margin: 5mm; }
             .no-print { display: none !important; } 
         }
     </style>
@@ -217,6 +218,7 @@
 <datalist id="globalItemOptions"></datalist>
 <datalist id="globalShopOptions"></datalist> 
 <datalist id="ordShopList"></datalist>
+<datalist id="penAllShopList"></datalist> 
 
 <div id="imgModal" onclick="this.style.display='none'">
     <img id="modalImg" src="">
@@ -365,6 +367,10 @@
         <button onclick="changeTab('deleted')" id="t-deleted">Deleted Records</button>
         <button onclick="changeTab('progress')" id="t-progress">Business Progress</button>
         <button onclick="changeTab('progress2')" id="t-progress2" style="background: #8e44ad; color: white;">Profit Progress</button>
+        
+        <button onclick="changeTab('pending-all')" id="t-pending-all" style="background:#f39c12; color:white;">Shop Pending Invoices</button>
+        <button onclick="changeTab('day-sale')" id="t-day-sale" style="background:#27ae60; color:white;">Day Sale Report</button>
+        
         <button onclick="changeTab('tax')" id="t-tax" style="background:var(--tax); color:white;">Tax Payments</button>
         <button onclick="changeTab('messages')" id="t-messages" style="background:var(--wa); color:white;">💬 WhatsApp & SMS</button>
     </div>
@@ -452,7 +458,7 @@
             </div>
             <canvas id="mouldChartCanvas" style="max-height: 350px; margin-top:15px;"></canvas>
         </div>
-        <button class="btn btn-pdf" style="background:var(--mould);" onclick="downloadPDF('tbl-moulds', 'Mould Cost Report')">📄 DOWNLOAD MOULDS REPORT (PDF)</button>
+        <button class="btn btn-pdf" style="background:var(--mould); margin-top:10px; width:100%" onclick="downloadPDF('tbl-moulds', 'Mould Cost Report')">📄 DOWNLOAD MOULDS REPORT (PDF)</button>
         <table id="tbl-moulds">
             <thead><tr><th>#</th><th>Date</th><th>Mould Name</th><th>Item</th><th>Maker</th><th>Total Cost</th><th>Advance</th><th>Paid Later</th><th>Balance</th><th>Action</th></tr></thead>
             <tbody id="mouldBody"></tbody>
@@ -488,7 +494,7 @@
             <strong>🔄 Sort:</strong><select id="sortMt" onchange="filterRender('maintenance')" style="width: auto; margin-top: 0; padding: 8px;"><option value="date-desc">Date: Newest First</option><option value="date-asc">Date: Oldest First</option><option value="desc-az">Description: A - Z</option><option value="desc-za">Description: Z - A</option></select>
             <button class="btn btn-info" onclick="resetFilters()">Reset</button>
         </div>
-        <button class="btn btn-pdf" style="background:#e67e22;" onclick="downloadPDF('tbl-maintenance', 'Maintenance Cost Report')">📄 DOWNLOAD MAINTENANCE (PDF)</button>
+        <button class="btn btn-pdf" style="background:#e67e22; margin-top:10px; width:100%" onclick="downloadPDF('tbl-maintenance', 'Maintenance Cost Report')">📄 DOWNLOAD MAINTENANCE (PDF)</button>
         <table id="tbl-maintenance"><thead><tr><th>#</th><th>Date</th><th>Description</th><th>Payee</th><th>Qty</th><th>Amount</th><th>Method</th><th>Action</th></tr></thead><tbody id="maintenanceBody"></tbody></table>
         <h3 style="text-align: right; color: #e67e22; margin-top: 15px;">Total Maintenance: Rs. <span id="mtTotal">0.00</span></h3>
         <div id="pg-maintenance"></div>
@@ -539,7 +545,7 @@
                 <option value="za">Z - A</option>
             </select>
         </div>
-        <button class="btn btn-pdf" onclick="downloadPDF('tbl-shops', 'Registered Shops Report')">📄 DOWNLOAD SHOPS (PDF)</button>
+        <button class="btn btn-pdf" style="margin-top:10px; width:100%" onclick="downloadPDF('tbl-shops', 'Registered Shops Report')">📄 DOWNLOAD SHOPS (PDF)</button>
         <table id="tbl-shops"><thead><tr><th>#</th><th style="width:70px">Image</th><th>Shop Name</th><th>Category</th><th>Address</th><th>Map Link</th><th>Contact Details (WA / Normal)</th><th>📞 Call</th><th>Notes</th><th>Action</th></tr></thead><tbody id="shopBody"></tbody></table>
         <div id="pg-shops"></div>
     </div>
@@ -608,7 +614,7 @@
             <button class="btn btn-info" onclick="addOrderRow()">+ Add Item Row</button>
             <button class="btn btn-save" id="ordBtn" onclick="saveOrder()">CONFIRM & SUBMIT ORDER</button>
         </div>
-        <button class="btn btn-pdf" onclick="downloadPDF('tbl-orders', 'Pending Orders Report')">📄 DOWNLOAD PENDING ORDERS (PDF)</button>
+        <button class="btn btn-pdf" style="margin-top:10px; width:100%" onclick="downloadPDF('tbl-orders', 'Pending Orders Report')">📄 DOWNLOAD PENDING ORDERS (PDF)</button>
         <table id="tbl-orders"><thead><tr><th>#</th><th>Order Date</th><th>Target Date</th><th>Shop</th><th>Order Details</th><th>Advance</th><th>Action</th></tr></thead><tbody id="orderBody"></tbody></table>
         <h3 style="text-align: right; color: var(--info); margin-top: 15px;">Total Pending Value: Rs. <span id="pendOrdTotalVal">0.00</span></h3>
         <div id="pg-orders"></div>
@@ -674,7 +680,7 @@
             </select>
             <button class="btn btn-info" onclick="resetFilters()">Reset All</button>
         </div>
-        <button class="btn btn-pdf" onclick="downloadPDF('tbl-pending-pay', 'Pending Payments Report')">📄 DOWNLOAD PENDING PAYMENTS (PDF)</button>
+        <button class="btn btn-pdf" style="margin-top:10px; width:100%" onclick="downloadPDF('tbl-pending-pay', 'Pending Payments Report')">📄 DOWNLOAD PENDING PAYMENTS (PDF)</button>
         <table id="tbl-pending-pay"><thead><tr><th>#</th><th>Inv No</th><th>Date</th><th>Shop</th><th>Description</th><th>Grand Total</th><th>Paid</th><th>Balance</th><th>Action</th></tr></thead><tbody id="penPayBody"></tbody></table>
         
         <h3 style="text-align: right; color: red; margin-top: 15px;">Total Pending Balance: Rs. <span id="penPayTotalBal">0.00</span></h3>
@@ -691,7 +697,7 @@
             <input list="globalShopOptions" id="fOverdueShop" placeholder="Type Shop Name to Filter..." oninput="filterRender('overdue')">
             <button class="btn btn-info" onclick="resetFilters()">Reset Filter</button>
         </div>
-        <button class="btn btn-pdf" onclick="downloadPDF('tbl-overdue', 'Overdue Payments Report')">📄 DOWNLOAD OVERDUE PAYMENTS (PDF)</button>
+        <button class="btn btn-pdf" style="margin-top:10px; width:100%" onclick="downloadPDF('tbl-overdue', 'Overdue Payments Report')">📄 DOWNLOAD OVERDUE PAYMENTS (PDF)</button>
         <table id="tbl-overdue"><thead><tr><th>#</th><th>Inv No</th><th>Sale Date</th><th>Shop</th><th>Items Sold</th><th>Total Value</th><th>Paid So Far</th><th>Remaining Balance</th><th>Action</th></tr></thead><tbody id="overdueBody"></tbody></table>
         <div id="pg-overdue"></div>
     </div>
@@ -711,7 +717,7 @@
                  <option value="shop-za">Shop Name: Z - A</option>
              </select>
         </div>
-        <button class="btn btn-pdf" onclick="downloadPDF('tbl-finished-pay', 'Finished Payments Report')">📄 DOWNLOAD FINISHED PAYMENTS (PDF)</button>
+        <button class="btn btn-pdf" style="margin-top:10px; width:100%" onclick="downloadPDF('tbl-finished-pay', 'Finished Payments Report')">📄 DOWNLOAD FINISHED PAYMENTS (PDF)</button>
         <table id="tbl-finished-pay"><thead><tr><th>#</th><th>Inv No</th><th>Date</th><th>Shop</th><th>Item Description</th><th>Total Value</th><th>Status</th><th>Action</th></tr></thead><tbody id="finPayBody"></tbody></table>
         
         <h3 style="text-align: right; color: var(--accent); margin-top: 15px;">Total Finished Value: Rs. <span id="finPayTotalVal">0.00</span></h3>
@@ -745,7 +751,7 @@
              <button class="btn btn-info" onclick="resetFilters()">Reset All</button>
         </div>
 
-        <button class="btn btn-pdf" onclick="downloadPDF('tbl-ebook', 'eBook Bank Summary Report')">📄 DOWNLOAD E-BOOK LEDGER (PDF)</button>
+        <button class="btn btn-pdf" style="margin-top:10px; width:100%" onclick="downloadPDF('tbl-ebook', 'eBook Bank Summary Report')">📄 DOWNLOAD E-BOOK LEDGER (PDF)</button>
         <table id="tbl-ebook">
             <thead><tr><th>#</th><th>Date</th><th>Shop / Payee</th><th>Description</th><th>Method</th><th>Bank / Cheque Details</th><th>Income (Rs)</th><th>Expense (Rs)</th><th>Running Balance</th></tr></thead>
             <tbody id="ebookBody"></tbody>
@@ -788,7 +794,7 @@
             <button class="btn btn-info" onclick="resetFilters()">Reset</button>
         </div>
 
-        <button class="btn btn-pdf" style="background:#9b59b6;" onclick="downloadPDF('tbl-withdrawals', 'Withdrawals Report')">📄 DOWNLOAD WITHDRAWALS (PDF)</button>
+        <button class="btn btn-pdf" style="background:#9b59b6; margin-top:10px; width:100%" onclick="downloadPDF('tbl-withdrawals', 'Withdrawals Report')">📄 DOWNLOAD WITHDRAWALS (PDF)</button>
         <table id="tbl-withdrawals">
             <thead><tr><th>#</th><th>Date</th><th>Description</th><th>Amount</th><th>Method</th><th>Action</th></tr></thead>
             <tbody id="withdrawalsBody"></tbody>
@@ -845,7 +851,7 @@
 
         <div class="box">
             <h3>Item-wise Profit Analysis (Table view)</h3>
-            <button class="btn btn-pdf" onclick="downloadPDF('tbl-profit', 'Profit Progress Report')">📄 DOWNLOAD PROFIT PROGRESS (PDF)</button>
+            <button class="btn btn-pdf" style="margin-top:10px; width:100%" onclick="downloadPDF('tbl-profit', 'Profit Progress Report')">📄 DOWNLOAD PROFIT PROGRESS (PDF)</button>
             <div style="overflow-x: auto;">
             <table id="tbl-profit" style="min-width: 1200px; display: block; overflow-x: auto; white-space: nowrap;">
                 <thead>
@@ -863,6 +869,69 @@
             </div>
             <div id="pg-profit"></div>
         </div>
+    </div>
+    
+    <div id="pending-all" class="tab-content">
+        <div class="box" style="display:flex; gap:15px; align-items:center; flex-wrap:wrap; background:#fdebd0;">
+            <div><strong>📂 Category:</strong> <select id="penAllCat" onchange="updatePenAllShops()">
+                <option value="">All Categories</option>
+                <option value="Company">Company</option>
+                <option value="Service Centers">Service Centers</option>
+                <option value="Spare Parts">Spare Parts</option>
+                <option value="Spare Parts Dealers">Spare Parts Dealers</option>
+                <option value="Other">Other</option>
+            </select></div>
+            <div><strong>🏪 Shop:</strong> <input list="penAllShopList" id="penAllShop" placeholder="Type Shop Name to Select..." autocomplete="off" onchange="filterRender('penAll')" style="margin-top:0;"></div>
+        </div>
+        <button class="btn btn-pdf" style="margin-top:10px; width:100%" onclick="downloadPDF('tbl-pending-all', 'Shop Pending Invoices Report')">📄 DOWNLOAD SHOP PENDING (PDF)</button>
+        <table id="tbl-pending-all">
+            <thead><tr><th>#</th><th>Shop Name</th><th>Inv No</th><th>Date</th><th>Items</th><th>Grand Total</th><th>Paid</th><th>Balance</th><th>Action</th></tr></thead>
+            <tbody id="penAllBody"></tbody>
+            <tfoot id="penAllFooter" style="background:#ecf0f1; font-weight:bold;"></tfoot>
+        </table>
+        <div id="pg-penAll"></div>
+    </div>
+
+    <div id="day-sale" class="tab-content">
+        <div class="box" style="display:flex; gap:15px; align-items:center; flex-wrap:wrap; background:#d5f5e3;">
+            <div><strong>📅 Select Date:</strong> <input type="date" id="daySaleDate" onchange="filterRender('daySale')"></div>
+            <div><strong>📦 Item Name:</strong> <input list="globalItemOptions" id="daySaleItem" placeholder="Type specific item or leave blank for ALL" onchange="filterRender('daySale')"></div>
+            <button class="btn btn-info" onclick="resetFilters()">Reset All</button>
+        </div>
+        <div class="grid" style="margin-bottom:15px;">
+            <div class="box" style="text-align:center; background:#d5f5e3; border-left:5px solid var(--accent);">
+                <h3>✅ Paid (Finished) Income</h3><h2 id="dsFinInc" style="color:var(--accent);">Rs. 0.00</h2>
+            </div>
+            <div class="box" style="text-align:center; background:#fdebd0; border-left:5px solid var(--edit);">
+                <h3>⏳ Pending Income</h3><h2 id="dsPenInc" style="color:var(--edit);">Rs. 0.00</h2>
+            </div>
+            <div class="box" style="text-align:center; background:#ebf5fb; border-left:5px solid var(--info);">
+                <h3>Total Day Revenue</h3><h2 id="dsTotInc" style="color:var(--info);">Rs. 0.00</h2>
+            </div>
+            <div class="box" style="text-align:center; background:#eaeded; border-left:5px solid var(--primary);">
+                <h3>Total Day Profit</h3><h2 id="dsTotProf" style="color:var(--primary);">Rs. 0.00</h2>
+            </div>
+        </div>
+        
+        <h3 style="color:var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 5px; display:flex; justify-content:space-between; align-items:center;">
+            ✅ Finished Sales (Paid)
+            <button class="btn btn-pdf" style="margin:0; width:auto; padding:5px 10px;" onclick="downloadPDF('tbl-day-sale-fin', 'Day Sale Finished Report')">📄 PDF</button>
+        </h3>
+        <table id="tbl-day-sale-fin">
+            <thead><tr><th>Item Name</th><th>Sold Qty</th><th>Income (Revenue)</th><th>Cost (Expense)</th><th>Profit</th></tr></thead>
+            <tbody id="daySaleFinBody"></tbody>
+            <tfoot id="daySaleFinFooter" style="background:#ecf0f1; font-weight:bold;"></tfoot>
+        </table>
+
+        <h3 style="color:var(--edit); border-bottom: 2px solid var(--edit); padding-bottom: 5px; margin-top:30px; display:flex; justify-content:space-between; align-items:center;">
+            ⏳ Pending Sales (To be Paid)
+            <button class="btn btn-pdf" style="margin:0; width:auto; padding:5px 10px;" onclick="downloadPDF('tbl-day-sale-pen', 'Day Sale Pending Report')">📄 PDF</button>
+        </h3>
+        <table id="tbl-day-sale-pen">
+            <thead><tr><th>Item Name</th><th>Sold Qty</th><th>Income (Revenue)</th><th>Cost (Expense)</th><th>Profit</th></tr></thead>
+            <tbody id="daySalePenBody"></tbody>
+            <tfoot id="daySalePenFooter" style="background:#ecf0f1; font-weight:bold;"></tfoot>
+        </table>
     </div>
 
     <div id="tax" class="tab-content">
@@ -891,10 +960,11 @@
             🔍 Filter by Year: 
             <select id="fTaxYear" onchange="filterRender('tax')"></select>
         </div>
-        <button class="btn btn-pdf" onclick="downloadPDF('tbl-tax', 'Tax Payments Report')">📄 DOWNLOAD TAX PAYMENTS (PDF)</button>
+        <button class="btn btn-pdf" style="margin-top:10px; width:100%" onclick="downloadPDF('tbl-tax', 'Tax Payments Report')">📄 DOWNLOAD TAX PAYMENTS (PDF)</button>
         <table id="tbl-tax">
             <thead><tr><th>#</th><th>Year</th><th>Date</th><th>Method</th><th>Bank / Chq Details</th><th>Amount Paid</th><th>Slip Image</th><th>Action</th></tr></thead>
             <tbody id="taxBody"></tbody>
+            <tfoot id="taxFooter"></tfoot>
         </table>
         <div id="pg-tax"></div>
     </div>
@@ -1141,7 +1211,7 @@
     let sriLankaMap = null;
     let mapMarkers = [];
 
-    let curPage = { shops: 1, items: 1, stock: 1, orders: 1, finOrders: 1, penPay: 1, finPay: 1, ret: 1, del: 1, tax: 1, profit: 1, ebook: 1, overdue: 1, moulds: 1, maintenance: 1, withdrawals: 1 };
+    let curPage = { shops: 1, items: 1, stock: 1, orders: 1, finOrders: 1, penPay: 1, finPay: 1, ret: 1, del: 1, tax: 1, profit: 1, ebook: 1, overdue: 1, moulds: 1, maintenance: 1, withdrawals: 1, penAll: 1, daySale: 1 };
     let PAGE_LIMIT = 10;
 
     let yrHtml = "";
@@ -1281,57 +1351,56 @@
 
         document.getElementById('main-app').style.display = 'none';
         printArea.style.display = 'block';
-        printArea.style.position = 'relative';
-        printArea.style.left = 'auto';
-        printArea.style.top = 'auto';
+        printArea.style.position = 'absolute';
+        printArea.style.left = '0';
+        printArea.style.top = '0';
+        printArea.style.width = '100%';
         
-        invCard.style.width = '1000px';
-        invCard.style.maxWidth = '1000px';
+        invCard.style.width = '800px';
+        invCard.style.maxWidth = '800px';
         invCard.style.margin = '0 auto';
-        invCard.style.padding = '40px';
+        invCard.style.padding = '30px';
         invCard.style.boxShadow = 'none';
 
-        html2canvas(invCard, {
-            scale: 2, 
-            useCORS: true,
-            windowWidth: 1000
-        }).then(canvas => {
-            const imgData = canvas.toDataURL('image/jpeg', 1.0);
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a4'); 
+        setTimeout(() => {
+            html2canvas(invCard, {
+                scale: 2, 
+                useCORS: true,
+                windowWidth: 850
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4'); 
 
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
 
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
+                let ratio = pdfWidth / canvasWidth;
+                let finalWidth = pdfWidth; 
+                let finalHeight = canvasHeight * ratio;
 
-            let ratio = pdfWidth / canvasWidth;
-            let finalWidth = pdfWidth; 
-            let finalHeight = canvasHeight * ratio;
+                if (finalHeight > (pdfHeight - 10)) { 
+                    let scaleFactor = (pdfHeight - 10) / finalHeight;
+                    finalHeight = finalHeight * scaleFactor;
+                    finalWidth = finalWidth * scaleFactor;
+                }
 
-            let heightLeft = finalHeight;
-            let position = 0;
+                let xOffset = (pdfWidth - finalWidth) / 2;
+                pdf.addImage(imgData, 'JPEG', xOffset, 5, finalWidth, finalHeight);
 
-            pdf.addImage(imgData, 'JPEG', 0, position, finalWidth, finalHeight);
-            heightLeft -= pdfHeight;
+                pdf.save(`${s.inv}_Invoice.pdf`);
 
-            while (heightLeft > 0) {
-                position = heightLeft - finalHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'JPEG', 0, position, finalWidth, finalHeight);
-                heightLeft -= pdfHeight;
-            }
-
-            pdf.save(`${s.inv}_Invoice.pdf`);
-
-            document.getElementById('main-app').style.display = 'block';
-            printArea.style.display = 'none';
-            printArea.style.position = 'absolute';
-            invCard.style.width = '100%';
-            invCard.style.maxWidth = '850px';
-            invCard.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
-        });
+                document.getElementById('main-app').style.display = 'block';
+                printArea.style.display = 'none';
+                printArea.style.position = 'relative';
+                invCard.style.width = '100%';
+                invCard.style.maxWidth = '850px';
+                invCard.style.padding = '40px';
+                invCard.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
+            });
+        }, 100);
     }
 
     function openLightbox(src) {
@@ -1514,9 +1583,14 @@
         if(id === 'progress2' || id === 'growth') render(); 
         
         if(id === 'inc-exp') {
-            if(sriLankaMap) {
-                setTimeout(() => sriLankaMap.invalidateSize(), 200); 
-            }
+            setTimeout(() => {
+                if(!sriLankaMap) {
+                    initMap();
+                    updateMapMarkers();
+                } else {
+                    sriLankaMap.invalidateSize();
+                }
+            }, 300); 
         }
     }
 
@@ -1781,6 +1855,15 @@
         
         datalist.innerHTML = filteredShops.map(s => `<option value="${s.name}">`).join('');
     }
+    
+    function updatePenAllShops() {
+        const cat = document.getElementById('penAllCat').value;
+        const datalist = document.getElementById('penAllShopList');
+        let shops = db.shops.filter(s => cat === "" || (s.category || 'Other') === cat);
+        datalist.innerHTML = shops.map(s => `<option value="${s.name}">`).join('');
+        document.getElementById('penAllShop').value = ""; 
+        filterRender('penAll');
+    }
 
     function triggerCall(i) {
         const s = db.shops[i];
@@ -1978,9 +2061,11 @@
             const n = r.querySelector('.on').value;
             const q = parseFloat(r.querySelector('.oq').value||0);
             const p = parseFloat(r.querySelector('.op').value||0);
+
             if(n && q) { 
-                const itData = db.items.find(x => x.name === n); 
-                items.push({n: n, q: q, p: p, c: itData ? (itData.cost || 0) : 0}); 
+                const itemRef = db.items.find(x => x.name === n);
+                const c = itemRef ? (itemRef.cost || 0) : 0;
+                items.push({n: n, q: q, p: p, c: c}); 
             }
         });
         
@@ -2155,7 +2240,13 @@
             let sShop = db.shops.find(x => x.name === sale.shop);
             if (sShop && sShop.p1) {
                 let sBal = sale.grand - (sale.adv || 0) - sale.paid;
-                sendSystemSMS(sShop.p1, `YENUFLEX: Your Invoice ${sale.inv} generated successfully. Total Balance: Rs.${fmtNum(sBal <= 0 ? 0 : sBal)}. Thank you!`);
+                
+                let itemTextSMS = (sale.items||[]).map(it => ` ${it.n} - Rs.${fmtNum(it.p)} x ${it.q} = Rs.${fmtNum(it.p*it.q)}`).join('\n');
+                let invTypeStr = sBal <= 0 ? "FINISHED INVOICE" : "PENDING INVOICE";
+                
+                let smsMsg = `YENUFLEX RUBBER PRODUCTS\n----------------------\n${invTypeStr}\n Invoice No:  ${sale.inv}\n Date:  ${sale.date}\n Shop:  ${sale.shop}\n----------------------\n Items:\n${itemTextSMS}\n----------------------\n Sub Total:  Rs. ${fmtNum(sale.subtotal)}\n Paid:  Rs. ${fmtNum(payNow + (sale.adv||0))}\n Balance:  Rs. ${fmtNum(sBal <= 0 ? 0 : sBal)}\n----------------------\nThank you!`;
+                
+                sendSystemSMS(sShop.p1, smsMsg);
                 alert("SMS එක යැවීම සඳහා Phone එකට Signal යවන ලදී!");
             } else {
                 alert("මෙම Shop එක සඳහා WhatsApp අංකයක් Register කර නොමැත!");
@@ -2226,17 +2317,52 @@
 
         const printArea = document.getElementById('invoice-print-area');
         const mainApp = document.getElementById('main-app');
+        const invCard = document.getElementById('invoice-card');
         
         mainApp.style.display = 'none'; 
         printArea.style.display = 'block'; 
-        printArea.style.position = 'relative'; 
-        printArea.style.left = 'auto';
-        printArea.style.top = 'auto';
+        printArea.style.position = 'absolute'; 
+        printArea.style.left = '0';
+        printArea.style.top = '0';
+        printArea.style.width = '100%';
         
-        window.print(); 
+        invCard.style.width = '800px';
+        invCard.style.maxWidth = '800px';
+        invCard.style.margin = '0 auto';
+        invCard.style.padding = '30px';
+        invCard.style.boxShadow = 'none';
         
-        printArea.style.display = 'none';
-        mainApp.style.display = 'block';
+        setTimeout(() => {
+            html2canvas(invCard, {
+                scale: 2, 
+                useCORS: true,
+                windowWidth: 850
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                
+                const printContainer = document.createElement('div');
+                printContainer.id = "temp-print-container";
+                printContainer.innerHTML = `<img src="${imgData}">`;
+                document.body.appendChild(printContainer);
+
+                document.body.classList.add('printing-invoice');
+                printArea.style.display = 'none';
+
+                setTimeout(() => {
+                    window.print(); 
+                    
+                    document.body.removeChild(printContainer);
+                    document.body.classList.remove('printing-invoice');
+                    
+                    mainApp.style.display = 'block';
+                    printArea.style.position = 'relative';
+                    invCard.style.width = '100%';
+                    invCard.style.maxWidth = '850px';
+                    invCard.style.padding = '40px';
+                    invCard.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
+                }, 100);
+            });
+        }, 100);
     }
 
     function togglePayModalOnline() {
@@ -2427,6 +2553,17 @@
         sync();
     }
 
+    window.permanentDelete = function(i) {
+        const pwd = prompt("Enter password to permanently delete this record:");
+        if (pwd === "YEnu@098") {
+            db.deleted.splice(i, 1);
+            sync();
+            alert("Record permanently deleted.");
+        } else if (pwd !== null) {
+            alert("Incorrect Password!");
+        }
+    };
+
     function toggleTaxMethod() {
         const method = document.getElementById('taxMethod').value; 
         const isOnline = method === 'Online'; 
@@ -2535,7 +2672,7 @@
         
         const s = db.sales.find(x => x.inv === invNo); 
         const sh = db.shops.find(x => x.name === s.shop);
-        let itemText = (s.items||[]).map(it => `${it.n} - Rs.${fmtNum(it.p)} x ${it.q} = Rs.${fmtNum(it.p*it.q)}`).join('\n');
+        let itemText = (s.items||[]).map(it => ` ${it.n} - Rs.${fmtNum(it.p)} x ${it.q} = Rs.${fmtNum(it.p*it.q)}`).join('\n');
         const bal = s.grand - (s.adv||0) - (s.paid||0);
         
         const msg = `*YENUFLEX RUBBER PRODUCTS*\n----------------------\n*Invoice No:* ${s.inv}\n*Date:* ${s.date}\n*Shop:* ${s.shop}\n----------------------\n*Items:*\n${itemText}\n----------------------\n*Sub Total:* Rs. ${fmtNum(s.grand)}\n*Advance:* Rs. ${fmtNum(s.adv||0)}\n*Paid:* Rs. ${fmtNum(s.paid||0)}\n*Balance:* Rs. ${fmtNum(bal)}\n----------------------\nThank you!`;
@@ -2559,7 +2696,7 @@
         
         const s = db.sales.find(x => x.inv === invNo); 
         const sh = db.shops.find(x => x.name === s.shop);
-        let itemText = (s.items||[]).map(it => `${it.n} - Rs.${fmtNum(it.p)} x ${it.q} = Rs.${fmtNum(it.p*it.q)}`).join('\n');
+        let itemText = (s.items||[]).map(it => ` ${it.n} - Rs.${fmtNum(it.p)} x ${it.q} = Rs.${fmtNum(it.p*it.q)}`).join('\n');
         
         const msg = `*YENUFLEX RUBBER PRODUCTS*\n----------------------\n*FINISHED INVOICE*\n*Invoice No:* ${s.inv}\n*Date:* ${s.date}\n*Shop:* ${s.shop}\n----------------------\n*Items:*\n${itemText}\n----------------------\n*Sub Total:* Rs. ${fmtNum(s.grand)}\n*Paid:* Rs. ${fmtNum(s.grand)}\n*Balance:* Rs. 0.00\n----------------------\nThank you!`;
         window.open(`https://wa.me/${sh.p1}?text=${encodeURIComponent(msg)}`); 
@@ -2771,7 +2908,11 @@
 
         db.sales.forEach(s => { 
             addData(s.date, 'S', s.grand); 
-            addData(s.date, 'E', (s.items||[]).reduce((sum, it) => sum + (it.q * (parseFloat(it.c)||0)), 0)); 
+            addData(s.date, 'E', (s.items||[]).reduce((sum, it) => {
+                const itemRef = db.items.find(x => x.name === it.n) || {};
+                const uCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
+                return sum + (it.q * uCost);
+            }, 0)); 
         });
         
         db.maintenance.forEach(m => addData(m.date, 'E', m.amt)); 
@@ -2871,6 +3012,11 @@
         document.getElementById('globalItemOptions').innerHTML = db.items.map(i => `<option value="${i.name}">`).join(''); 
         document.getElementById('globalShopOptions').innerHTML = db.shops.map(s => `<option value="${s.name}">`).join('');
         
+        const currentCat = document.getElementById('penAllCat') ? document.getElementById('penAllCat').value : "";
+        if (!currentCat && document.getElementById('penAllShopList')) {
+             document.getElementById('penAllShopList').innerHTML = db.shops.map(s => `<option value="${s.name}">`).join('');
+        }
+
         if(typeof updateSmsInvoices === 'function') updateSmsInvoices();
         if(typeof updateSmsFinInvoices === 'function') updateSmsFinInvoices();
         updateWaInvoices(); 
@@ -2887,6 +3033,98 @@
                 (r.items||[]).forEach(it => { returnTracker[it.n] = (returnTracker[it.n] || 0) + parseFloat(r.retQty || 0); }); 
             } 
         });
+
+        const paCat = document.getElementById('penAllCat') ? document.getElementById('penAllCat').value : "";
+        const paShop = document.getElementById('penAllShop') ? document.getElementById('penAllShop').value : "";
+        
+        let paList = db.sales.filter(s => {
+            const bal = s.grand - (s.adv||0) - (s.paid||0);
+            if(s.status === 'Finished' || s.status === 'Returned' || bal <= 0) return false;
+            if(paShop && s.shop !== paShop) return false;
+            if(paCat && !paShop) {
+                const sh = db.shops.find(x => x.name === s.shop);
+                if(sh && (sh.category||'Other') !== paCat) return false;
+            }
+            return true;
+        });
+        
+        paList.sort((a,b) => {
+            let shopCmp = (a.shop || '').localeCompare(b.shop || '');
+            if(shopCmp !== 0) return shopCmp;
+            return new Date(b.date) - new Date(a.date);
+        });
+
+        let totGrandPa = 0, totPaidPa = 0, totBalPa = 0;
+        paList.forEach(s => {
+            totGrandPa += s.grand;
+            totPaidPa += (s.adv||0) + (s.paid||0);
+            totBalPa += (s.grand - (s.adv||0) - (s.paid||0));
+        });
+
+        if(document.getElementById('penAllBody')) {
+            let pPa = getPaginated(paList, 'penAll');
+            document.getElementById('penAllBody').innerHTML = pPa.map((s, index) => {
+                const bal = s.grand - (s.adv||0) - (s.paid||0);
+                const realIdx = db.sales.indexOf(s);
+                return `<tr><td>${(curPage['penAll']-1)*PAGE_LIMIT + index + 1}</td><td style="font-weight:bold;color:var(--primary);">${s.shop}</td><td>${s.inv}</td><td>${s.date}</td><td>${(s.items||[]).map(x=>`${x.n} (${x.q})`).join('<br>')}</td><td>Rs. ${fmtNum(s.grand)}</td><td>Rs. ${fmtNum((s.adv||0)+(s.paid||0))}</td><td style="color:red;font-weight:bold;">Rs. ${fmtNum(bal)}</td><td><div style="display:flex; gap:5px;"><button class="btn btn-info" style="font-size:12px;padding:6px;" onclick="printInv(${realIdx})">View</button> <button class="btn btn-pdf" style="font-size:12px;padding:6px;" onclick="downloadInvoicePDF(${realIdx})">PDF</button> <button class="btn btn-edit" style="font-size:12px;padding:6px;" onclick="openPayModal(${realIdx})">Pay</button></div></td></tr>`;
+            }).join('');
+            document.getElementById('penAllFooter').innerHTML = `<tr><td colspan="5" style="text-align:right;font-size:16px;"><strong>NET TOTAL DUE:</strong></td><td style="font-size:16px;color:var(--primary);"><strong>Rs. ${fmtNum(totGrandPa)}</strong></td><td style="font-size:16px;color:var(--accent);"><strong>Rs. ${fmtNum(totPaidPa)}</strong></td><td style="color:red;font-size:16px;"><strong>Rs. ${fmtNum(totBalPa)}</strong></td><td></td></tr>`;
+            renderPg(paList.length, 'penAll', 'pg-penAll');
+        }
+
+        const dsDate = document.getElementById('daySaleDate') ? document.getElementById('daySaleDate').value : "";
+        const dsItem = document.getElementById('daySaleItem') ? document.getElementById('daySaleItem').value : "";
+        
+        let finItemsMap = {};
+        let penItemsMap = {};
+        let dsFinInc = 0, dsPenInc = 0, dsTotExp = 0, dsTotProf = 0;
+
+        if (dsDate) {
+            db.sales.filter(s => s.date === dsDate && s.status !== 'Returned').forEach(s => {
+                const bal = s.grand - (s.adv||0) - (s.paid||0);
+                const isFin = (s.status === 'Finished' || bal <= 0);
+                
+                (s.items||[]).forEach(it => {
+                    if(dsItem && it.n !== dsItem) return;
+                    
+                    let targetMap = isFin ? finItemsMap : penItemsMap;
+                    if(!targetMap[it.n]) targetMap[it.n] = { q: 0, rev: 0, cost: 0 };
+                    
+                    targetMap[it.n].q += it.q;
+                    const rev = (it.q * (parseFloat(it.p) || 0));
+                    targetMap[it.n].rev += rev;
+                    
+                    const itemRef = db.items.find(x => x.name === it.n) || {};
+                    const unitCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
+                    const cost = (it.q * unitCost);
+                    targetMap[it.n].cost += cost;
+                    
+                    if(isFin) dsFinInc += rev;
+                    else dsPenInc += rev;
+                    
+                    dsTotExp += cost;
+                });
+            });
+            dsTotProf = (dsFinInc + dsPenInc) - dsTotExp;
+            
+            Object.keys(finItemsMap).forEach(k => finItemsMap[k].prof = finItemsMap[k].rev - finItemsMap[k].cost);
+            Object.keys(penItemsMap).forEach(k => penItemsMap[k].prof = penItemsMap[k].rev - penItemsMap[k].cost);
+        }
+
+        if(document.getElementById('dsFinInc')) {
+            document.getElementById('dsFinInc').innerText = "Rs. " + fmtNum(dsFinInc);
+            document.getElementById('dsPenInc').innerText = "Rs. " + fmtNum(dsPenInc);
+            document.getElementById('dsTotInc').innerText = "Rs. " + fmtNum(dsFinInc + dsPenInc);
+            document.getElementById('dsTotProf').innerText = "Rs. " + fmtNum(dsTotProf);
+            
+            let finArr = Object.keys(finItemsMap).map(k => ({name: k, ...finItemsMap[k]}));
+            document.getElementById('daySaleFinBody').innerHTML = finArr.map(it => `<tr><td>${it.name}</td><td>${it.q}</td><td style="color:var(--accent);font-weight:bold;">Rs. ${fmtNum(it.rev)}</td><td style="color:var(--danger);">Rs. ${fmtNum(it.cost)}</td><td style="color:var(--primary);font-weight:bold;">Rs. ${fmtNum(it.prof)}</td></tr>`).join('') || `<tr><td colspan="5" style="text-align:center; color:#999;">No finished sales data found for this date.</td></tr>`;
+            document.getElementById('daySaleFinFooter').innerHTML = finArr.length > 0 ? `<tr><td colspan="2" style="text-align:right;"><strong>TOTAL:</strong></td><td style="color:var(--accent);"><strong>Rs. ${fmtNum(dsFinInc)}</strong></td><td style="color:var(--danger);"><strong>Rs. ${fmtNum(finArr.reduce((a,b)=>a+b.cost,0))}</strong></td><td style="color:var(--primary);"><strong>Rs. ${fmtNum(dsFinInc - finArr.reduce((a,b)=>a+b.cost,0))}</strong></td></tr>` : "";
+            
+            let penArr = Object.keys(penItemsMap).map(k => ({name: k, ...penItemsMap[k]}));
+            document.getElementById('daySalePenBody').innerHTML = penArr.map(it => `<tr><td>${it.name}</td><td>${it.q}</td><td style="color:var(--edit);font-weight:bold;">Rs. ${fmtNum(it.rev)}</td><td style="color:var(--danger);">Rs. ${fmtNum(it.cost)}</td><td style="color:var(--primary);font-weight:bold;">Rs. ${fmtNum(it.prof)}</td></tr>`).join('') || `<tr><td colspan="5" style="text-align:center; color:#999;">No pending sales data found for this date.</td></tr>`;
+            document.getElementById('daySalePenFooter').innerHTML = penArr.length > 0 ? `<tr><td colspan="2" style="text-align:right;"><strong>TOTAL:</strong></td><td style="color:var(--edit);"><strong>Rs. ${fmtNum(dsPenInc)}</strong></td><td style="color:var(--danger);"><strong>Rs. ${fmtNum(penArr.reduce((a,b)=>a+b.cost,0))}</strong></td><td style="color:var(--primary);"><strong>Rs. ${fmtNum(dsPenInc - penArr.reduce((a,b)=>a+b.cost,0))}</strong></td></tr>` : "";
+        }
 
         const fMtYr = document.getElementById('fMtYear') ? document.getElementById('fMtYear').value : "";
         let mtArrFiltered = db.maintenance.filter(m => !fMtYr || (m.date && m.date.startsWith(fMtYr)));
@@ -2967,7 +3205,7 @@
             let mapLink = "";
             if (s.loc) {
                 if (s.loc.includes("http")) { mapLink = `<a href="${s.loc}" target="_blank" style="text-decoration:none;font-size:20px;">🗺️</a>`; } 
-                else if (s.loc.includes(",")) { mapLink = `<a href="https://www.google.com/maps?q=${s.loc}" target="_blank" style="text-decoration:none;font-size:20px;">🗺️</a>`; }
+                else if (s.loc.includes(",")) { mapLink = `<a href="https://maps.google.com/?q=${s.loc}" target="_blank" style="text-decoration:none;font-size:20px;">🗺️</a>`; }
             }
             let displayAddr = s.address || s.addr || '-';
             let cat = s.category || 'Other';
@@ -3183,12 +3421,14 @@
                 let itemsStr = d.data.items.map(it => `${it.n} (${it.q})`).join(', ');
                 details += `<br><small style="color:#555;">Items in Inv: ${itemsStr}</small>`;
             }
-            return `<tr><td>${(curPage['del']-1)*PAGE_LIMIT + index + 1}</td><td>${d.type}</td><td>${d.ref}</td><td>${details}</td><td>${d.date}</td><td><button class="btn btn-edit" onclick="undoDelete(${i})">Undo Delete</button></td></tr>`;
+            return `<tr><td>${(curPage['del']-1)*PAGE_LIMIT + index + 1}</td><td>${d.type}</td><td>${d.ref}</td><td>${details}</td><td>${d.date}</td><td><div style="display:flex;gap:5px;"><button class="btn btn-edit" style="width:100%;font-size:12px;padding:6px;" onclick="undoDelete(${i})">Undo</button><button class="btn btn-del" style="width:100%;font-size:12px;padding:6px;" onclick="permanentDelete(${i})">Delete</button></div></td></tr>`;
         }).join('');
         renderPg(db.deleted.length, 'del', 'pg-del');
 
         const fTaxYr = document.getElementById('fTaxYear').value; 
         let taxArr = db.tax.map((t, i) => ({t, i})).filter(({t}) => !fTaxYr || t.year === fTaxYr);
+        let totalTaxAmt = taxArr.reduce((sum, item) => sum + item.t.amt, 0);
+        
         let pTax = getPaginated(taxArr, 'tax');
         document.getElementById('taxBody').innerHTML = pTax.map(({t, i}, index) => { 
             let bankInfo = '-'; 
@@ -3196,6 +3436,7 @@
             if(t.method === 'Cheque') bankInfo = `Chk No: ${t.chkNo||'-'} / Date: ${t.chkDate||'-'}`; 
             return `<tr><td>${(curPage['tax']-1)*PAGE_LIMIT + index + 1}</td><td>${t.year}</td><td>${t.date}</td><td>${t.method||'Cash'}</td><td>${bankInfo}</td><td>Rs. ${fmtNum(t.amt)}</td><td><img src="${t.img}" class="thumb" onclick="openLightbox(this.src)"></td><td><button class="btn btn-edit" onclick="editTax(${i})">Edit</button> <button class="btn btn-del" onclick="deleteTax(${i})">X</button></td></tr>`; 
         }).join('');
+        document.getElementById('taxFooter').innerHTML = `<tr><td colspan="5" style="text-align:right;"><strong>TOTAL TAX PAID:</strong></td><td style="color:var(--tax);font-size:15px;"><strong>Rs. ${fmtNum(totalTaxAmt)}</strong></td><td colspan="2"></td></tr>`;
         renderPg(taxArr.length, 'tax', 'pg-tax');
 
         const progYearVal = document.getElementById('fProgYear') ? document.getElementById('fProgYear').value : ""; 
@@ -3224,7 +3465,8 @@
             if (!profYearVal || sDate.getFullYear() == profYearVal) {
                 (s.items||[]).forEach(it => {
                     const itemRef = db.items.find(x => x.name === it.n) || { cost: 0 }; 
-                    const totalItProfit = (parseFloat(it.p || 0) - (it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0))) * parseFloat(it.q || 0);
+                    const uCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
+                    const totalItProfit = (parseFloat(it.p || 0) - uCost) * parseFloat(it.q || 0);
                     
                     yearlyProfit += totalItProfit; 
                     if(sDate.getMonth() === currentMonth) monthlyProfit += totalItProfit;
@@ -3253,7 +3495,6 @@
         
         document.getElementById('itemStatsGrid').innerHTML = Object.keys(itemStats).map(name => `<div class="box" style="border-left:5px solid var(--info);background:white;"><strong>${name}</strong><br>Sold Qty: ${itemStats[name].qty}<br>Revenue: Rs. ${fmtNum(itemStats[name].rev)}</div>`).join('');
         
-        // NEW CHART FOR ITEM REVENUE
         let revChartCtx = document.getElementById('itemRevChartCanvas').getContext('2d');
         if(window.itemRevChartInstance) window.itemRevChartInstance.destroy();
         window.itemRevChartInstance = new Chart(revChartCtx, {
@@ -3268,7 +3509,6 @@
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
-
 
         document.getElementById('p2Monthly').innerText = "Rs. " + fmtNum(monthlyProfit); 
         document.getElementById('p2Yearly').innerText = "Rs. " + fmtNum(yearlyProfit);
@@ -3291,11 +3531,10 @@
         renderPg(profitArr.length, 'profit', 'pg-profit'); 
         renderProfitChart(globalMonthlyChartData); 
     }
-
-    function resetFilters() { 
-        ['searchShopName','filterShopCat','searchItemName','fShop','fFinShop','fFinPayShop','fOverdueShop','fEbType','fEbMethod','fEbPayee','fMouldYear','fPenPayYear','fFinPayYear','fIncExpYear','fEbYear','fMtYear','fWdYear','fProgYear','profitYearSelect','fGrowthYear'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).value = ""; });
+function resetFilters() { 
+        ['searchShopName','filterShopCat','searchItemName','fShop','fFinShop','fFinPayShop','fOverdueShop','fEbType','fEbMethod','fEbPayee','fMouldYear','fPenPayYear','fFinPayYear','fIncExpYear','fEbYear','fMtYear','fWdYear','fProgYear','profitYearSelect','fGrowthYear','penAllCat','penAllShop','daySaleDate','daySaleItem'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).value = ""; });
         ['sortShops','sortMt','sortWd','sortFinOrd'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).value = (id==="sortShops"?"az":"date-desc"); });
-        ['shops','items','penPay','finPay','finOrders','overdue','ebook','moulds','maintenance','withdrawals','profit','growth'].forEach(tab => filterRender(tab));
+        ['shops','items','penPay','finPay','finOrders','overdue','ebook','moulds','maintenance','withdrawals','profit','growth','penAll','daySale'].forEach(tab => filterRender(tab));
     }
     
     function exportData() { 
@@ -3321,7 +3560,6 @@
     }
     
     window.onload = () => {
-        // UI එක පෙන්නන එක දැන් onAuthStateChanged එකෙන් බලාගනීවි
         updateNetworkStatus();
         render();
         if(typeof updateBulkSmsShops === 'function') updateBulkSmsShops();
@@ -3392,6 +3630,7 @@
     window.deleteReturnRecord = deleteReturnRecord;
     window.deleteSale = deleteSale;
     window.undoDelete = undoDelete;
+    window.permanentDelete = permanentDelete;
     window.toggleTaxMethod = toggleTaxMethod;
     window.saveTax = saveTax;
     window.editTax = editTax;
@@ -3409,6 +3648,7 @@
     window.exportData = exportData;
     window.importData = importData;
     window.render = render;
+    window.updatePenAllShops = updatePenAllShops;
     
     // Webhook/SMS functions attached to window
     window.sendSystemSMS = sendSystemSMS;
