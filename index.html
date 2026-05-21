@@ -160,16 +160,12 @@
             padding: 30px;
             box-sizing: border-box;
             width: 100%;
-            min-width: 850px !important; /* Forces desktop view on mobile to prevent wrapping */
             display: none;
-            overflow-x: auto;
         }
 
         #invoice-card {
             background: #fff;
             max-width: 850px;
-            width: 100%;
-            min-width: 800px !important; /* Prevents address line breaking on narrow screens */
             margin: 0 auto;
             padding: 40px;
             border-radius: 12px;
@@ -185,8 +181,7 @@
         #invoice-card .invoice-label { text-align: right; max-width: 50%; }
         #invoice-card .invoice-label h1 { color: var(--inv-primary); font-size: 38px; margin: 0; letter-spacing: 2px; text-transform: uppercase; }
         
-        #invoice-card .info-grid { display: flex !important; justify-content: space-between !important; margin-bottom: 40px; background: var(--inv-accent); padding: 20px; border-radius: 8px; box-sizing: border-box; page-break-inside: avoid; }
-        #invoice-card .info-box { width: 48% !important; }
+        #invoice-card .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; background: var(--inv-accent); padding: 20px; border-radius: 8px; box-sizing: border-box; page-break-inside: avoid; }
         #invoice-card .info-box h3 { font-size: 14px; color: var(--inv-primary); margin-bottom: 10px; text-transform: uppercase; margin-top: 0; border: none; }
         #invoice-card .info-box p { margin: 2px 0; font-size: 15px; color: var(--inv-text-dark); line-height: 1.5; }
         
@@ -225,10 +220,10 @@
         #invoice-card .signature-section { text-align: right; display: flex; flex-direction: column; justify-content: flex-end; }
 
         @media print { 
-            body { background: #fff !important; padding: 0 !important; margin: 0 !important; min-width: 850px !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { background: #fff !important; padding: 0 !important; margin: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .no-print, #login-overlay, #sub-nav-container, #dashboard-menu, .nav-tabs, .tab-content, #networkStatus { display: none !important; }
-            #invoice-print-area { display: block !important; position: static !important; padding: 30px !important; width: 100% !important; min-width: 850px !important; margin: 0 !important; transform: scale(0.95); transform-origin: top left; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            #invoice-card { background: #fff !important; max-width: 850px !important; width: 100% !important; min-width: 800px !important; margin: 0 auto !important; padding: 40px !important; border-radius: 12px !important; box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important; border-top: 10px solid #0056b3 !important; box-sizing: border-box !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            #invoice-print-area { display: block !important; position: static !important; padding: 30px !important; width: 100% !important; margin: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            #invoice-card { background: #fff !important; max-width: 850px !important; margin: 0 auto !important; padding: 40px !important; border-radius: 12px !important; box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important; border-top: 10px solid #0056b3 !important; box-sizing: border-box !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             @page { size: A4 portrait; margin: 0; }
         }
     </style>
@@ -1455,32 +1450,20 @@
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     };
 
-    // ==========================================
-    // NEW MACRODROID SMS FUNCTIONS 
-    // ==========================================
-    window.sendSmsWebhook = function(phoneNumber, msgBody) {
+    // UPDATE: New Webhook Function for SMS
+    window.sendSystemSMS = function(phoneNumber, smsText) {
         const baseUrl = "https://trigger.macrodroid.com/fe0f2d4c-eca6-413b-a8f6-b8f01671a647/sendsms";
         const params = new URLSearchParams({
             phone_number: phoneNumber,
-            msg_body: msgBody
+            msg_body: smsText
         });
         fetch(`${baseUrl}?${params.toString()}`, {
             method: 'GET',
-            mode: 'no-cors' 
+            mode: 'no-cors'
         })
         .then(response => console.log("Webhook triggered for:", phoneNumber))
         .catch(error => console.error("Error sending webhook:", error));
     };
-
-    window.sendBulkSMS = function(smsList) {
-        smsList.forEach((sms, index) => {
-            // Oru SMS-num idayil 2.5 seconds gap
-            setTimeout(() => {
-                window.sendSmsWebhook(sms.phone, sms.message);
-            }, index * 2500); 
-        });
-    };
-    // ==========================================
 
     window.downloadPDF = function(tableId, title) {
         const backupPages = JSON.parse(JSON.stringify(curPage));
@@ -2273,7 +2256,15 @@
         if(idx === -1) {
             db.shops.push(obj); 
         } else {
+            const oldName = db.shops[idx].name;
             db.shops[idx] = obj;
+            
+            // Name changed, update all existing records
+            if(oldName !== obj.name) {
+                db.orders.forEach(o => { if(o.shop === oldName) o.shop = obj.name; });
+                db.sales.forEach(s => { if(s.shop === oldName) s.shop = obj.name; });
+                db.returns.forEach(r => { if(r.shop === oldName) r.shop = obj.name; });
+            }
         }
         
         window.clearShopForm(); 
@@ -2335,7 +2326,19 @@
         if(idx === -1) {
             db.items.push(it); 
         } else {
+            const oldName = db.items[idx].name;
             db.items[idx] = it;
+            
+            // Name changed, update all existing records
+            if(oldName !== it.name) {
+                db.orders.forEach(o => { (o.items||[]).forEach(x => { if(x.n === oldName) x.n = it.name; }); });
+                db.sales.forEach(s => { (s.items||[]).forEach(x => { if(x.n === oldName) x.n = it.name; }); });
+                db.returns.forEach(r => { 
+                    if(r.itemName === oldName) r.itemName = it.name; 
+                    (r.items||[]).forEach(x => { if(x.n === oldName) x.n = it.name; }); 
+                });
+                db.moulds.forEach(m => { if(m.item === oldName) m.item = it.name; });
+            }
         }
         
         window.clearItemForm(); 
@@ -2647,10 +2650,10 @@
                 
                 let smsMsg = `YENUFLEX RUBBER PRODUCTS\n----------------------\n${invTypeStr}\n Invoice No:  ${sale.inv}\n Date:  ${sale.date}\n Shop:  ${sale.shop}\n----------------------\n Items:\n${itemTextSMS}\n----------------------\n Sub Total:  Rs. ${fmtNum(sale.subtotal)}\n Paid:  Rs. ${fmtNum(payNow + (sale.adv||0))}\n Balance:  Rs. ${fmtNum(sBal <= 0 ? 0 : sBal)}\n----------------------\nThank you!`;
                 
-                window.sendSmsWebhook(sShop.p1, smsMsg);
+                window.sendSystemSMS(sShop.p1, smsMsg);
                 alert("SMS එක පද්ධතියෙන් Send කළා!");
             } else {
-                alert("මෙම Shop එක සඳහා අංකයක් Register කර නොමැත!");
+                alert("මෙම Shop එක සඳහා WhatsApp අංකයක් Register කර නොමැත!");
             }
         }
 
@@ -3173,7 +3176,7 @@
         
         const msg = `*YENUFLEX RUBBER PRODUCTS* 🚨 *ගෙවීම් සිහිකැඳවීමයි* 🚨 හිතවත් ${s.shop}, ඔබගේ බිල්පත් අංක *${s.inv}* (දිනය: ${s.date}) සඳහා ගෙවීමට ඇති ශේෂය දින ${diffDays} කින් ප්‍රමාද වී ඇත. *ලබාගත් භාණ්ඩ:* ${itemText} *සම්පූර්ණ මුදල:* රු. ${fmtNum(s.grand)} *මෙතෙක් ගෙවා ඇති මුදල:* රු. ${fmtNum((s.adv||0) + (s.paid||0))} *අවසාන ගෙවීම:* ${lastPayText} 🚨 *ගෙවීමට ඉතිරි ශේෂය:* රු. ${fmtNum(bal)} කරුණාකර මෙම හිඟ මුදල හැකි ඉක්මනින් ගෙවා නිම කරන මෙන් කාරුණිකව සිහිපත් කරමු. ස්තූතියි.`;
         
-        window.sendSmsWebhook(sh.p1, msg);
+        window.sendSystemSMS(sh.p1, msg);
         alert("Overdue SMS එක පද්ධතියෙන් Send කළා!");
     };
 
@@ -3194,7 +3197,7 @@
         if(sh && sh.p1) {
             const bal = s.grand - (s.adv||0) - (s.paid||0);
             const msg = `YENUFLEX: You have a pending payment of Rs.${fmtNum(bal)} for Inv ${s.inv}. Please clear it.`;
-            window.sendSmsWebhook(sh.p1, msg);
+            window.sendSystemSMS(sh.p1, msg);
             alert("Pending SMS Signal Sent!");
         } else alert("Shop WhatsApp number not found!");
     };
@@ -3217,11 +3220,12 @@
         const sh = db.shops.find(x => x.name === s.shop);
         if(sh && sh.p1) {
             const msg = `YENUFLEX: Payment for Inv ${s.inv} received successfully. Thanks!`;
-            window.sendSmsWebhook(sh.p1, msg);
+            window.sendSystemSMS(sh.p1, msg);
             alert("Finished SMS Signal Sent!");
         } else alert("Shop WhatsApp number not found!");
     };
 
+    // UPDATE: New Bulk SMS Function with 2.5 seconds delay
     window.startBulkSMS = function() {
         let msg = document.getElementById('bulkSmsMsgBody').value;
         if(!msg.trim()) return alert("Message is empty!");
@@ -3238,9 +3242,12 @@
         if(targets.length === 0) return alert("No valid shops found for this selection!");
 
         if(confirm(`Are you sure you want to send this SMS to ${targets.length} shop(s) via MacroDroid?`)) {
-            let smsList = targets.map(shop => ({ phone: shop.p1, message: msg }));
-            window.sendBulkSMS(smsList);
-            alert("Bulk SMS Signals Sent! (Please wait a few seconds for all to process)");
+            targets.forEach((shop, index) => {
+                setTimeout(() => {
+                    window.sendSystemSMS(shop.p1, msg);
+                }, index * 2500); // 2.5 seconds delay per SMS
+            });
+            alert("Bulk SMS Signals sending started...");
         }
     };
 
@@ -4083,11 +4090,11 @@ window.render = function() {
         });
         db.items.forEach(i => { itemCostTotal += (i.stock * (i.cost||0)); }); 
         
-        // 🚀 BUG FIX APPLIED HERE: Only summing (s.adv + s.paid). Removed double counting of s.payments!
         let incomeTotal = 0;
         db.sales.forEach(s => {
             if(!fIncExpYear || (s.date||'').startsWith(fIncExpYear)) {
                 incomeTotal += ((s.adv||0) + (s.paid||0));
+                if(s.payments) s.payments.forEach(p => incomeTotal += p.amt);
             }
         });
         
@@ -4124,7 +4131,7 @@ window.render = function() {
             document.getElementById('statAdv').innerText = `Rs. ${fmtNum(advTotal)}`;
             
             let sortedItems = Object.keys(itemRevMap).sort((a,b) => itemRevMap[b] - itemRevMap[a]);
-            document.getElementById('itemStatsGrid').innerHTML = sortedItems.map(k => `<div class="box"><strong>${k}</strong> <small style="color:#7f8c8d;">(${itemQtyMap[k]} Sold)</small><br><span style="color:var(--accent);font-size:18px;">Rs. ${fmtNum(itemRevMap[k])}</span></div>`).join('');
+            document.getElementById('itemStatsGrid').innerHTML = sortedItems.map(k => `<div class="box" style="border: 2px solid #bdc3c7; background: #fff;"><strong style="color:#2c3e50; font-size:15px;">${k}</strong> <small style="color:#c0392b; font-weight:bold; font-size:14px;">(${itemQtyMap[k]} Sold)</small><br><span style="color:#1e8449; font-weight:800; font-size:19px;">Rs. ${fmtNum(itemRevMap[k])}</span></div>`).join('');
             
             if(window.itemChartInstance) window.itemChartInstance.destroy();
             const ctx = document.getElementById('itemRevChartCanvas');
@@ -4173,7 +4180,7 @@ window.render = function() {
             document.getElementById('p2Yearly').innerText = `Rs. ${fmtNum(yProf)}`;
             
             let pItems = Object.keys(itemProfMap).sort((a,b) => itemProfMap[b] - itemProfMap[a]);
-            document.getElementById('p2ItemStatsGrid').innerHTML = pItems.map(k => `<div class="box"><strong>${k}</strong> <small style="color:#7f8c8d;">(${itemProfQtyMap[k]} Sold)</small><br><span style="color:var(--accent);font-size:18px;">Rs. ${fmtNum(itemProfMap[k])}</span></div>`).join('');
+            document.getElementById('p2ItemStatsGrid').innerHTML = pItems.map(k => `<div class="box" style="border: 2px solid #bdc3c7; background: #fff;"><strong style="color:#2c3e50; font-size:15px;">${k}</strong> <small style="color:#c0392b; font-weight:bold; font-size:14px;">(${itemProfQtyMap[k]} Sold)</small><br><span style="color:#1e8449; font-weight:800; font-size:19px;">Rs. ${fmtNum(itemProfMap[k])}</span></div>`).join('');
             
             let sortedProfItems = Object.keys(itemMonthProfMap).sort();
             let monthTotals = [0,0,0,0,0,0,0,0,0,0,0,0];
