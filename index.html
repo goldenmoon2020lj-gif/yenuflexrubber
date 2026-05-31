@@ -149,7 +149,7 @@
         
         #map { height: 400px; width: 100%; border-radius: 10px; border: 2px solid #ccc; margin-top: 15px; z-index: 1;}
 
-        /* Modern Invoice Print Styles */
+        /* Modern Invoice Print Styles - Fixed for PDF & Print Alignment */
         #invoice-print-area {
             --inv-primary: #0056b3;
             --inv-secondary: #00a8e8;
@@ -176,7 +176,8 @@
 
         #invoice-card .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; page-break-inside: avoid; }
         #invoice-card .logo-section { text-align: left; max-width: 50%; padding-left: 0; margin-left: 0; }
-        #invoice-card .logo-section img { width: auto; max-height: 140px; object-fit: contain; margin-left: 0; }
+        /* Logo constraints strictly defined to stop layout breakage */
+        #invoice-card .logo-section img { max-width: 250px; max-height: 100px; object-fit: contain; margin-left: 0; }
         
         #invoice-card .invoice-label { text-align: right; max-width: 50%; }
         #invoice-card .invoice-label h1 { color: var(--inv-primary); font-size: 38px; margin: 0; letter-spacing: 2px; text-transform: uppercase; }
@@ -185,7 +186,7 @@
         #invoice-card .info-box h3 { font-size: 14px; color: var(--inv-primary); margin-bottom: 10px; text-transform: uppercase; margin-top: 0; border: none; }
         #invoice-card .info-box p { margin: 2px 0; font-size: 15px; color: var(--inv-text-dark); line-height: 1.5; }
         
-        #invoice-card .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border: none; table-layout: fixed; page-break-inside: auto; }
+        #invoice-card .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border: none; page-break-inside: auto; }
         #invoice-card .items-table tr { page-break-inside: avoid; page-break-after: auto; }
         #invoice-card .items-table th { background-color: var(--inv-primary); color: white; padding: 12px; text-align: left; font-size: 14px; border: none; }
         
@@ -227,17 +228,57 @@
             @page { size: A4 portrait; margin: 0; }
         }
     </style>
+<style>
+@media print {
+    /* 1. Browser margins okkoma ayin karanawa */
+    @page {
+        margin: 0 !important; 
+        size: A4 portrait;
+    }
+    
+    /* 2. Body eka 75% walata podi karanawa */
+    body {
+        margin: 5mm !important; /* Wate podi idayak thiyanawa */
+        zoom: 0.75 !important; /* ⚠️ Thawath pallahata yanawanam meka 0.70 karanna */
+    }
+
+    /* 3. Table eka madata kadila 2weni page ekata yana eka block karanawa */
+    table, tr, td, th, tbody, thead, tfoot {
+        page-break-inside: avoid !important;
+        page-break-after: auto !important;
+    }
+
+    /* 4. Description eka overlap wena eka nawaththanawa */
+    td {
+        word-wrap: break-word !important;
+        white-space: normal !important;
+    }
+}
+</style>
 </head>
 <body>
 
+<div id="lowStockNotifBanner" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#e74c3c; color:white; padding:15px; border-radius:10px; z-index:10000; box-shadow:0 4px 10px rgba(0,0,0,0.3); border: 2px solid #c0392b;">
+    🚨 <strong style="font-size:16px;">Low Stock Alert!</strong> <br>
+    පහත අයිතමයන්ගේ Stock එක 20 ට වඩා අඩු වී ඇත:<br>
+    <span id="lowStockNames" style="font-size:14px; font-weight:bold; display:block; margin:5px 0;"></span>
+    <button onclick="closeLowStockNotif()" style="margin-top:10px; padding:5px 15px; background:white; color:#c0392b; border:none; border-radius:5px; cursor:pointer; font-weight:bold; width:100%;">Close</button>
+</div>
+
+<div id="noteNotifBanner" style="display:none; position:fixed; top:20px; left:20px; background:#f1c40f; color:#000; padding:15px; border-radius:10px; z-index:10000; box-shadow:0 4px 10px rgba(0,0,0,0.3); border-left: 5px solid #d35400;">
+    🔔 <strong style="font-size:16px;">Special Note Alert!</strong> <br>
+    අද දිනට අදාළ විශේෂ සටහන් ඇත. කරුණාකර Notepad එක බලන්න.<br>
+    <button onclick="closeNoteNotif()" style="margin-top:10px; padding:5px 15px; background:white; color:#d35400; border:none; border-radius:5px; cursor:pointer; font-weight:bold; width:100%;">Close</button>
+</div>
+
 <div id="overdueNotifBanner" style="display:none; position:fixed; top:20px; right:20px; background:var(--danger); color:white; padding:15px; border-radius:10px; z-index:10000; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
     🚨 <strong style="font-size:16px;">Overdue Alert!</strong> <br>
-    <span id="overdueNotifCount" style="font-size:20px; font-weight:bold;">0</span> Invoices have passed 3 weeks (21 days) without payment.<br>
+    දින 21 පහුවෙච්ච awath Invoices <span id="overdueNotifCount" style="font-size:20px; font-weight:bold;">0</span> ක් තියෙනවා.<br>
     Please check the Overdue Tab.<br>
     <button onclick="closeOverdueNotif()" style="margin-top:10px; padding:5px 15px; background:white; color:var(--danger); border:none; border-radius:5px; cursor:pointer; font-weight:bold; width:100%;">Close</button>
 </div>
 
-<div id="chequeNotifBanner" style="display:none; position:fixed; top:20px; right:20px; background:var(--mould); color:white; padding:15px; border-radius:10px; z-index:10000; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
+<div id="chequeNotifBanner" style="display:none; position:fixed; top:110px; right:20px; background:var(--mould); color:white; padding:15px; border-radius:10px; z-index:10000; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
     🔔 <strong style="font-size:16px;">Cheque Alert!</strong> <br>
     <span id="chequeNotifCount" style="font-size:20px; font-weight:bold;">0</span> Cheques are due for deposit/encashment today!<br>
     Please check the Cheque Payments Tab.<br>
@@ -440,12 +481,36 @@
         <div class="dash-card" style="border-bottom-color: #7f8c8d;" onclick="openGroup('grp-misc')">
             <h2>⚙️ Other</h2><p>Returns, SMS, Deleted Records</p>
         </div>
+        <div class="dash-card" style="border-bottom-color: #f1c40f;" onclick="openGroup('grp-notepad')">
+            <h2>📝 Notepad</h2><p>Special Notes & Reminders</p>
+        </div>
     </div>
 
     <div id="sub-nav-container" class="nav-tabs" style="display:none; background: #2c3e50; padding: 10px; border-radius: 10px; position: sticky; top: 0; z-index: 100; align-items: center;">
         <button onclick="goHomeDashboard()" style="background: #e74c3c; color: white; margin-right: 15px;">⬅ BACK TO MAIN MENU</button>
         <div id="dynamic-sub-tabs" style="display: flex; gap: 5px; flex-wrap: wrap;">
         </div>
+    </div>
+
+    <div id="notepad" class="tab-content">
+        <div class="box" style="border-left: 5px solid #f1c40f;">
+            <h3 style="color: #f39c12;">Add Special Note</h3>
+            <input type="hidden" id="editNoteIdx" value="-1">
+            <div class="grid">
+                <div>Date: <input type="date" id="noteDate"></div>
+                <input type="text" id="noteText" placeholder="Write your note/reminder here...">
+                <div style="display:flex; align-items:center; gap:10px; margin-top:5px; grid-column: span 2;">
+                    <input type="checkbox" id="noteAlert" style="width:20px; height:20px; margin:0;">
+                    <label for="noteAlert" style="font-weight:bold; color:var(--danger);">Show Notification Alert on this Date</label>
+                </div>
+            </div>
+            <button class="btn btn-save" style="background:#f39c12;" onclick="saveNote()" id="noteBtn">SAVE NOTE</button>
+        </div>
+        <table id="tbl-notepad">
+            <thead><tr><th>#</th><th>Date</th><th>Note</th><th>Alert Status</th><th>Action</th></tr></thead>
+            <tbody id="notepadBody"></tbody>
+        </table>
+        <div id="pg-notepad"></div>
     </div>
 
     <div id="shops" class="tab-content">
@@ -609,11 +674,14 @@
     <div id="cheques" class="tab-content">
         <div class="box" style="border: 2px solid #f1c40f; background: #fdfbf7;">
             <h3 style="color: #f39c12; margin-top:0;">💳 Add / Update Cheque Payment to Invoice</h3>
-            <p style="font-size:12px; color:#555; margin-top:-5px;">* Invoice Number එක Type කර Search කර අදාළ Invoice එකට අලුතින් Cheque Payment එකක් එකතු කරන්න.</p>
+            <p style="font-size:12px; color:#555; margin-top:-5px;">* Invoice Number එක Type කර Search කර අදාළ Invoice එකට අලුතින් Cheque Payment එකක් එකතු කරන්න. ගෙවා අවසන් වූ Invoice එකක් නම් තිබෙන Cash ගෙවීමක් Cheque එකක් බවට වෙනස් කළ හැක.</p>
             <div class="grid" style="align-items: end;">
                 <div>Invoice No: <input type="text" id="cqAddInv" value="INV-" oninput="if(!this.value.startsWith('INV-')) this.value = 'INV-' + this.value.replace(/^INV-?/, '');"></div>
                 <button class="btn btn-info" onclick="fetchInvForCheque()" style="margin-bottom: 5px;">🔍 Find Invoice</button>
             </div>
+            
+            <div id="cqConvertList" style="display:none; margin-top: 15px; border-top: 1px solid #ccc; padding-top: 15px;"></div>
+            
             <div id="cqAddDetails" style="display:none; margin-top: 15px; border-top: 1px solid #ccc; padding-top: 15px;">
                 <p><strong>Shop:</strong> <span id="cqAddShop"></span> | <strong>Balance Due:</strong> Rs. <span id="cqAddBal" style="color:red; font-weight:bold;"></span></p>
                 <div class="grid">
@@ -628,7 +696,7 @@
             </div>
         </div>
 
-        <div class="box" style="display:flex; gap:15px; align-items:center; flex-wrap:wrap; background:#facbf0f1; background:#fcf3cf; border-left: 5px solid #f1c40f;">
+        <div class="box" style="display:flex; gap:15px; align-items:center; flex-wrap:wrap; background:#fcf3cf; border-left: 5px solid #f1c40f;">
             <div><strong>📂 Category:</strong> <select id="cqCatFilter" onchange="updateCqShops()" style="padding: 8px;">
                 <option value="">All Categories</option>
                 <option value="Company">Company</option>
@@ -657,11 +725,14 @@
     <div id="online-transfers" class="tab-content">
         <div class="box" style="border: 2px solid #3498db; background: #f0f8ff;">
             <h3 style="color: #2980b9; margin-top:0;">🌐 Add / Update Online Transfer to Invoice</h3>
-            <p style="font-size:12px; color:#555; margin-top:-5px;">* Invoice Number එක Type කර Search කර අදාළ Invoice එකට අලුතින් Online Transfer Payment එකක් එකතු කරන්න.</p>
+            <p style="font-size:12px; color:#555; margin-top:-5px;">* Invoice Number එක Type කර Search කර අදාළ Invoice එකට අලුතින් Online Transfer Payment එකක් එකතු කරන්න. ගෙවා අවසන් වූ Invoice එකක් නම් Cash ගෙවීමක් Online බවට වෙනස් කළ හැක.</p>
             <div class="grid" style="align-items: end;">
                 <div>Invoice No: <input type="text" id="onlAddInv" value="INV-" oninput="if(!this.value.startsWith('INV-')) this.value = 'INV-' + this.value.replace(/^INV-?/, '');"></div>
-                <button class="btn btn-info" onclick="fetchInvForOnline()" style="margin-bottom: 5px;">🔍 Find Invoice</button>
+                <button class="btn btn-info" onclick="fetchInvForオンライン()" style="margin-bottom: 5px;">🔍 Find Invoice</button>
             </div>
+            
+            <div id="onlConvertList" style="display:none; margin-top: 15px; border-top: 1px solid #ccc; padding-top: 15px;"></div>
+            
             <div id="onlAddDetails" style="display:none; margin-top: 15px; border-top: 1px solid #ccc; padding-top: 15px;">
                 <p><strong>Shop:</strong> <span id="onlAddShop"></span> | <strong>Balance Due:</strong> Rs. <span id="onlAddBal" style="color:red; font-weight:bold;"></span></p>
                 <div class="grid">
@@ -751,7 +822,11 @@
             <button class="btn btn-info" onclick="resetFilters()">Reset Filter</button>
         </div>
         <button class="btn btn-pdf" style="margin-top:10px; width:100%" onclick="downloadPDF('tbl-overdue', 'Overdue Payments Report')">📄 DOWNLOAD OVERDUE PAYMENTS (PDF)</button>
-        <table id="tbl-overdue"><thead><tr><th>#</th><th>Inv No</th><th>Sale Date</th><th>Shop</th><th>Items Sold</th><th>Total Value</th><th>Paid So Far</th><th>Remaining Balance</th><th>Action</th></tr></thead><tbody id="overdueBody"></tbody></table>
+        <table id="tbl-overdue">
+            <thead><tr><th>#</th><th>Inv No</th><th>Sale Date</th><th>Shop</th><th>Items Sold</th><th>Total Value</th><th>Paid So Far</th><th>Remaining Balance</th><th>Action</th></tr></thead>
+            <tbody id="overdueBody"></tbody>
+            <tfoot id="overdueFooter" style="background:#ecf0f1; font-weight:bold;"></tfoot>
+        </table>
         <div id="pg-overdue"></div>
     </div>
 
@@ -976,7 +1051,7 @@
         </div>
         
         <h3 style="color:var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 5px; display:flex; justify-content:space-between; align-items:center;">
-            ✅ Finished Sales (Paid)
+            ✅ Finished Sales Items (Paid)
             <button class="btn btn-pdf" style="margin:0; width:auto; padding:5px 10px;" onclick="downloadPDF('tbl-day-sale-fin', 'Day Sale Finished Report')">📄 PDF</button>
         </h3>
         <table id="tbl-day-sale-fin">
@@ -986,7 +1061,7 @@
         </table>
 
         <h3 style="color:var(--edit); border-bottom: 2px solid var(--edit); padding-bottom: 5px; margin-top:30px; display:flex; justify-content:space-between; align-items:center;">
-            ⏳ Pending Sales (To be Paid)
+            ⏳ Pending Sales Items (To be Paid)
             <button class="btn btn-pdf" style="margin:0; width:auto; padding:5px 10px;" onclick="downloadPDF('tbl-day-sale-pen', 'Day Sale Pending Report')">📄 PDF</button>
         </h3>
         <table id="tbl-day-sale-pen">
@@ -994,6 +1069,23 @@
             <tbody id="daySalePenBody"></tbody>
             <tfoot id="daySalePenFooter" style="background:#ecf0f1; font-weight:bold;"></tfoot>
         </table>
+
+        <h3 style="color:var(--primary); margin-top:40px; border-bottom:2px solid var(--primary); padding-bottom:5px;">✅ Finished Invoices for Selected Date</h3>
+        <table id="tbl-ds-fin-inv">
+            <thead><tr><th>#</th><th>Inv No</th><th>Shop Name</th><th>Items Details (Name, Qty, Price, Total)</th><th>Inv Total (Rs)</th><th>Paid (Rs)</th><th>Balance (Rs)</th></tr></thead>
+            <tbody id="dsFinInvBody"></tbody>
+        </table>
+
+        <h3 style="color:var(--danger); margin-top:30px; border-bottom:2px solid var(--danger); padding-bottom:5px;">⏳ Pending Invoices for Selected Date</h3>
+        <table id="tbl-ds-pen-inv">
+            <thead><tr><th>#</th><th>Inv No</th><th>Shop Name</th><th>Items Details (Name, Qty, Price, Total)</th><th>Inv Total (Rs)</th><th>Paid (Rs)</th><th>Balance (Rs)</th></tr></thead>
+            <tbody id="dsPenInvBody"></tbody>
+        </table>
+
+        <div class="box" style="margin-top:30px;">
+            <h3>📊 Monthly Sales Performance (For Selected Date's Month)</h3>
+            <canvas id="dsMonthlyChartCanvas" style="max-height: 350px;"></canvas>
+        </div>
     </div>
 
     <div id="growth" class="tab-content">
@@ -1036,7 +1128,7 @@
         </div>
         <div class="box">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3><h3>📍 Sri Lanka Shop Network Map</h3>
+                <h3>📍 Sri Lanka Shop Network Map</h3>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <strong>📂 Filter Category:</strong>
                     <select id="mapCatFilter" onchange="updateMapMarkers()" style="padding: 6px; border-radius: 5px;">
@@ -1106,6 +1198,7 @@
                     <option value="Online Transfer">Online Transfer</option>
                     <option value="Cheque">Cheque</option>
                 </select></div>
+                <input type="number" id="wdServCharge" placeholder="Bank Service Charge (Rs.)" style="display:none; margin-top:5px;">
                 <input type="text" id="wdBank" placeholder="Bank Name" style="display:none;">
                 <input type="text" id="wdAcc" placeholder="Account Number" style="display:none;">
                 <input type="text" id="wdSlip" placeholder="Slip Number" style="display:none;">
@@ -1117,6 +1210,12 @@
         </div>
 
         <div style="background: #ebdef0; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+            <strong>📂 Category:</strong>
+            <select id="fWdCat" onchange="filterRender('withdrawals')" style="width: auto; margin-top: 0; padding: 8px;">
+                <option value="">All Withdrawals</option>
+                <option value="Personal Withdrawal">Personal Withdrawal</option>
+                <option value="Business Withdrawal">Business Withdrawal</option>
+            </select>
             <strong>📅 Year:</strong>
             <select id="fWdYear" onchange="filterRender('withdrawals')" style="width: auto; margin-top: 0; padding: 8px;"></select>
             <strong>🔄 Sort:</strong>
@@ -1380,6 +1479,7 @@
     db.moulds = db.moulds || [];
     db.maintenance = db.maintenance || []; 
     db.withdrawals = db.withdrawals || [];
+    db.notepad = db.notepad || []; 
 
     let tempImg = "";
     let activeInvOrder = null;
@@ -1390,7 +1490,7 @@
     let sriLankaMap = null;
     let mapMarkers = [];
 
-    let curPage = { shops: 1, items: 1, stock: 1, orders: 1, penPay: 1, finPay: 1, ret: 1, del: 1, tax: 1, profit: 1, ebook: 1, overdue: 1, moulds: 1, maintenance: 1, withdrawals: 1, penAll: 1, daySale: 1, cheques: 1, online: 1 };
+    let curPage = { shops: 1, items: 1, stock: 1, orders: 1, penPay: 1, finPay: 1, ret: 1, del: 1, tax: 1, profit: 1, ebook: 1, overdue: 1, moulds: 1, maintenance: 1, withdrawals: 1, penAll: 1, daySale: 1, cheques: 1, online: 1, notepad: 1 };
     let PAGE_LIMIT = 10;
 
     let yrHtml = "";
@@ -1421,7 +1521,8 @@
         'grp-cost': [ {id: 'moulds', label: '🛠️ Mould Cost'}, {id: 'maintenance', label: '⚙️ Maintenance'} ],
         'grp-reports': [ {id: 'progress', label: '📈 Business Progress'}, {id: 'progress2', label: '📊 Profit Progress'}, {id: 'day-sale', label: '📅 Day Sale Report'}, {id: 'growth', label: '📈 Growth Chart'}, {id: 'inc-exp', label: '📊 Income & Expense'} ],
         'grp-cash': [ {id: 'withdrawals', label: '💰 Withdrawals'}, {id: 'ebook', label: '📖 View e-Book'} ],
-        'grp-misc': [ {id: 'returns', label: '🔄 Return Items'}, {id: 'deleted', label: '🗑️ Deleted Records'}, {id: 'messages', label: '💬 WhatsApp & SMS'} ]
+        'grp-misc': [ {id: 'returns', label: '🔄 Return Items'}, {id: 'deleted', label: '🗑️ Deleted Records'}, {id: 'messages', label: '💬 WhatsApp & SMS'} ],
+        'grp-notepad': [ {id: 'notepad', label: '📝 Notepad & Reminders'} ] 
     };
 
     window.openGroup = function(grpId) {
@@ -1450,7 +1551,6 @@
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     };
 
-    // UPDATE: New Webhook Function for SMS
     window.sendSystemSMS = function(phoneNumber, smsText) {
         const baseUrl = "https://trigger.macrodroid.com/fe0f2d4c-eca6-413b-a8f6-b8f01671a647/sendsms";
         const params = new URLSearchParams({
@@ -1773,6 +1873,7 @@
             db.moulds = db.moulds || [];
             db.maintenance = db.maintenance || []; 
             db.withdrawals = db.withdrawals || [];
+            db.notepad = db.notepad || [];
             
             localStorage.setItem('YENUFLEX_ERP_V6', JSON.stringify(db));
             if (typeof render === "function") render(); 
@@ -1784,7 +1885,7 @@
         if (pwd === null) return; 
         
         if (pwd === "YENU@123") {
-            db = { shops: [], items: [], orders: [], sales: [], returns: [], deleted: [], tax: [], transactions: [], moulds: [], maintenance: [], withdrawals: [] };
+            db = { shops: [], items: [], orders: [], sales: [], returns: [], deleted: [], tax: [], transactions: [], moulds: [], maintenance: [], withdrawals: [], notepad: [] };
             localStorage.removeItem('YENUFLEX_ERP_V6'); 
             sync(); 
             alert("System Data Reset Successfully!");
@@ -1831,7 +1932,7 @@
         if(document.getElementById(id)) document.getElementById(id).classList.add('active');
         if(document.getElementById('t-'+id)) document.getElementById('t-'+id).classList.add('active');
         
-        if(id === 'progress2' || id === 'growth') render(); 
+        if(id === 'progress2' || id === 'growth' || id === 'day-sale') render(); 
         
         if(id === 'inc-exp') {
             setTimeout(() => {
@@ -1872,6 +1973,69 @@
             }
         });
     }
+
+    // STRICT ITEM SELECTION LOGIC
+    window.checkStrictItem = function(inputEl) {
+        if (!inputEl.value) return;
+        const it = db.items.find(x => x.name === inputEl.value); 
+        if (!it) { 
+            alert("කරුණාකර List එකෙන් නිවැරදි Item එක පමණක් තෝරන්න. ඔබට අලුත් නම් මෙහි ඇතුළත් කළ නොහැක."); 
+            inputEl.value = ''; 
+            if (inputEl.nextElementSibling && inputEl.nextElementSibling.classList.contains('op')) {
+                inputEl.nextElementSibling.value = '';
+            }
+        } else {
+            if (inputEl.nextElementSibling && inputEl.nextElementSibling.classList.contains('op')) {
+                inputEl.nextElementSibling.value = it.price;
+            }
+        }
+    };
+
+    window.saveNote = function() {
+        const idx = parseInt(document.getElementById('editNoteIdx').value);
+        const obj = {
+            date: document.getElementById('noteDate').value,
+            text: document.getElementById('noteText').value,
+            alert: document.getElementById('noteAlert').checked
+        };
+        if(!obj.date || !obj.text) return alert("Date and Note text are required!");
+        
+        if(idx === -1) db.notepad.push(obj);
+        else db.notepad[idx] = obj;
+        
+        document.getElementById('editNoteIdx').value = "-1";
+        document.getElementById('noteDate').value = "";
+        document.getElementById('noteText').value = "";
+        document.getElementById('noteAlert').checked = false;
+        document.getElementById('noteBtn').innerText = "SAVE NOTE";
+        sync();
+    };
+
+    window.editNote = function(i) {
+        document.getElementById('editNoteIdx').value = i;
+        document.getElementById('noteDate').value = db.notepad[i].date;
+        document.getElementById('noteText').value = db.notepad[i].text;
+        document.getElementById('noteAlert').checked = db.notepad[i].alert;
+        document.getElementById('noteBtn').innerText = "UPDATE NOTE";
+        window.scrollTo(0,0);
+    };
+
+    window.deleteNote = function(i) {
+        if(confirm("Are you sure you want to delete this note?")) {
+            db.notepad.splice(i, 1);
+            sync();
+        }
+    };
+
+    window.closeNoteNotif = function() {
+        sessionStorage.setItem('noteNotifDismissed', 'true');
+        document.getElementById('noteNotifBanner').style.display = 'none';
+    };
+
+    window.closeLowStockNotif = function() {
+        sessionStorage.setItem('lowStockNotifDismissed', 'true');
+        document.getElementById('lowStockNotifBanner').style.display = 'none';
+    };
 
     window.toggleMtOnline = function() {
         const method = document.getElementById('mtMethod').value;
@@ -1925,6 +2089,7 @@
         document.getElementById('wdBank').style.display = isOnline ? 'block' : 'none';
         document.getElementById('wdAcc').style.display = isOnline ? 'block' : 'none';
         document.getElementById('wdSlip').style.display = isOnline ? 'block' : 'none';
+        document.getElementById('wdServCharge').style.display = isOnline ? 'block' : 'none'; 
         document.getElementById('wdChkNo').style.display = isCheque ? 'block' : 'none';
         document.getElementById('wdChkDate').style.display = isCheque ? 'block' : 'none';
         document.getElementById('wdNote').style.display = isCheque ? 'block' : 'none';
@@ -1936,6 +2101,7 @@
         const desc = document.getElementById('wdDesc').value;
         const amt = parseFloat(document.getElementById('wdAmt').value);
         const method = document.getElementById('wdMethod').value;
+        const servCharge = parseFloat(document.getElementById('wdServCharge').value || 0); 
         const bank = document.getElementById('wdBank').value;
         const acc = document.getElementById('wdAcc').value;
         const slip = document.getElementById('wdSlip').value;
@@ -1945,9 +2111,9 @@
 
         if(!date || !desc || !amt) return alert("Date, Description, and Amount are required!");
 
-        db.withdrawals.push({ cat, date, desc, amt, method, bank, acc, slip, chkNo, chkDate, note });
+        db.withdrawals.push({ cat, date, desc, amt, method, servCharge, bank, acc, slip, chkNo, chkDate, note });
         
-        ['wdDate', 'wdDesc', 'wdAmt', 'wdBank', 'wdAcc', 'wdSlip', 'wdChkNo', 'wdChkDate', 'wdNote'].forEach(id => document.getElementById(id).value = "");
+        ['wdDate', 'wdDesc', 'wdAmt', 'wdServCharge', 'wdBank', 'wdAcc', 'wdSlip', 'wdChkNo', 'wdChkDate', 'wdNote'].forEach(id => document.getElementById(id).value = "");
         document.getElementById('wdMethod').value = "Cash";
         window.toggleWdOnline();
         sync();
@@ -2259,7 +2425,6 @@
             const oldName = db.shops[idx].name;
             db.shops[idx] = obj;
             
-            // Name changed, update all existing records
             if(oldName !== obj.name) {
                 db.orders.forEach(o => { if(o.shop === oldName) o.shop = obj.name; });
                 db.sales.forEach(s => { if(s.shop === oldName) s.shop = obj.name; });
@@ -2329,7 +2494,6 @@
             const oldName = db.items[idx].name;
             db.items[idx] = it;
             
-            // Name changed, update all existing records
             if(oldName !== it.name) {
                 db.orders.forEach(o => { (o.items||[]).forEach(x => { if(x.n === oldName) x.n = it.name; }); });
                 db.sales.forEach(s => { (s.items||[]).forEach(x => { if(x.n === oldName) x.n = it.name; }); });
@@ -2393,17 +2557,10 @@
         }
     };
 
-    window.setAutoPrice = function(inputEl) { 
-        const it = db.items.find(x => x.name === inputEl.value); 
-        if(it) { 
-            inputEl.nextElementSibling.value = it.price; 
-        } 
-    };
-
     window.addOrderRow = function() {
         const div = document.createElement('div'); 
         div.className="grid box";
-        div.innerHTML = `<input list="globalItemOptions" class="on" placeholder="Type to search Item..." onchange="setAutoPrice(this)">
+        div.innerHTML = `<input list="globalItemOptions" class="on" placeholder="Type to search Item..." onchange="checkStrictItem(this)">
         <input type="number" class="op" placeholder="Sell Price">
         <input type="number" class="oq" placeholder="Qty">
         <button class="btn btn-del" onclick="this.parentElement.remove()">REMOVE</button>`;
@@ -2413,7 +2570,7 @@
     window.toggleOrdAdvMethod = function() {
         const method = document.getElementById('ordAdvMethod').value; 
         const isCheque = method === 'Cheque';
-        const isOnline = method === 'Online Transfer';
+        const isOnline = method === 'Online Transfer' || method === 'Online';
         document.getElementById('ordBank').style.display = (isCheque || isOnline) ? 'block' : 'none';
         document.getElementById('ordChkNo').style.display = isCheque ? 'block' : 'none'; 
         document.getElementById('ordChkDate').style.display = isCheque ? 'block' : 'none';
@@ -2489,7 +2646,7 @@
         (o.items||[]).forEach(it => {
             const div = document.createElement('div'); 
             div.className="grid box";
-            div.innerHTML = `<input list="globalItemOptions" class="on" placeholder="Type to search Item..." value="${it.n}" onchange="setAutoPrice(this)">
+            div.innerHTML = `<input list="globalItemOptions" class="on" placeholder="Type to search Item..." value="${it.n}" onchange="checkStrictItem(this)">
             <input type="number" class="op" placeholder="Sell Price" value="${it.p}">
             <input type="number" class="oq" placeholder="Qty" value="${it.q}">
             <button class="btn btn-del" onclick="this.parentElement.remove()">REMOVE</button>`;
@@ -2523,10 +2680,11 @@
         document.getElementById('salTotalDue').innerText = fmtNum(bal > 0 ? bal : 0);
     };
 
+    // Strict logic to ensure invoice numbers are never reused even after deletion
     window.getNextInvoiceNumber = function() {
         let maxInv = 1000;
         const extractNum = (invStr) => {
-            if(invStr && invStr.startsWith('INV-')) {
+            if(invStr && typeof invStr === 'string' && invStr.startsWith('INV-')) {
                 let num = parseInt(invStr.replace('INV-', ''));
                 if(!isNaN(num) && num > maxInv) maxInv = num;
             }
@@ -2534,8 +2692,14 @@
         db.sales.forEach(s => extractNum(s.inv));
         db.returns.forEach(r => extractNum(r.inv));
         db.deleted.forEach(d => {
-            if(d.type === 'Invoice') extractNum(d.ref);
-            if(d.type === 'Return') extractNum(d.ref.split(' - ')[0].replace('Inv: ', ''));
+            if(d.type === 'Invoice') {
+                extractNum(d.ref);
+                if(d.data && d.data.inv) extractNum(d.data.inv);
+            }
+            if(d.type === 'Return') {
+                extractNum(d.ref.split(' - ')[0].replace('Inv: ', ''));
+                if(d.data && d.data.inv) extractNum(d.data.inv);
+            }
         });
         return "INV-" + (maxInv + 1);
     };
@@ -2565,7 +2729,7 @@
     window.toggleSalPayMethod = function() {
         const method = document.getElementById('salPayMethod').value;
         const isCheque = method === 'Cheque';
-        const isOnline = method === 'Online Transfer';
+        const isOnline = method === 'Online Transfer' || method === 'Online';
         document.getElementById('salBank').style.display = (isCheque || isOnline) ? 'block' : 'none';
         document.getElementById('salChkNo').style.display = isCheque ? 'block' : 'none'; 
         document.getElementById('salChkDate').style.display = isCheque ? 'block' : 'none';
@@ -2712,12 +2876,47 @@
         if(!s) return alert("Invoice not found!");
         
         const bal = s.grand - (s.adv||0) - (s.paid||0);
-        if(bal <= 0) return alert("This invoice is already fully paid!");
+        const listDiv = document.getElementById('cqConvertList');
+        
+        if(bal <= 0) {
+            let cashPaymentsHtml = '';
+            if (s.adv > 0 && (s.advMethod === 'Cash' || !s.advMethod)) {
+                cashPaymentsHtml += `<div style="padding:10px; border:1px solid #ddd; margin-bottom:10px;">Advance: Rs.${fmtNum(s.adv)} (Cash) <button class="btn btn-edit" style="padding:5px;" onclick="convertPayToCheque('${s.inv}', -1, ${s.adv})">Convert to Cheque</button></div>`;
+            }
+            if (s.payments) {
+                s.payments.forEach((p, idx) => {
+                    if (p.method === 'Cash' || !p.method) {
+                        cashPaymentsHtml += `<div style="padding:10px; border:1px solid #ddd; margin-bottom:10px;">Payment: Rs.${fmtNum(p.amt)} on ${p.date} (Cash) <button class="btn btn-edit" style="padding:5px;" onclick="convertPayToCheque('${s.inv}', ${idx}, ${p.amt})">Convert to Cheque</button></div>`;
+                    }
+                });
+            }
+            if(cashPaymentsHtml === '') {
+                return alert("This invoice is already fully paid and has no Cash payments to convert.");
+            }
+            listDiv.innerHTML = `<h4 style="margin-top:0;">Available Cash Payments to Convert:</h4>${cashPaymentsHtml}`;
+            listDiv.style.display = 'block';
+            document.getElementById('cqAddDetails').style.display = 'none';
+        } else {
+            listDiv.style.display = 'none';
+            window.currentEditingInv = s;
+            window.currentEditingPayIdx = null; 
+            document.getElementById('cqAddShop').innerText = s.shop;
+            document.getElementById('cqAddBal').innerText = fmtNum(bal);
+            document.getElementById('cqAddAmt').value = bal; 
+            document.getElementById('cqAddDate').value = new Date().toISOString().substr(0,10);
+            document.getElementById('cqAddDetails').style.display = 'block';
+        }
+    };
 
+    window.convertPayToCheque = function(invNo, pIdx, amt) {
+        const s = db.sales.find(x => x.inv === invNo);
         window.currentEditingInv = s;
-        document.getElementById('cqAddShop').innerText = s.shop;
-        document.getElementById('cqAddBal').innerText = fmtNum(bal);
-        document.getElementById('cqAddAmt').value = bal; 
+        window.currentEditingPayIdx = pIdx; 
+        document.getElementById('cqConvertList').style.display = 'none';
+        document.getElementById('cqAddShop').innerText = s.shop + " (CONVERTING CASH TO CHEQUE)";
+        document.getElementById('cqAddBal').innerText = "N/A";
+        document.getElementById('cqAddAmt').value = amt;
+        document.getElementById('cqAddAmt').disabled = true; 
         document.getElementById('cqAddDate').value = new Date().toISOString().substr(0,10);
         document.getElementById('cqAddDetails').style.display = 'block';
     };
@@ -2728,27 +2927,49 @@
         const date = document.getElementById('cqAddDate').value;
         if(isNaN(amt) || amt <= 0 || !date) return alert("Valid amount and date required!");
 
-        if(!window.currentEditingInv.payments) window.currentEditingInv.payments = [];
-        window.currentEditingInv.paid = (window.currentEditingInv.paid || 0) + amt;
-        window.currentEditingInv.payments.push({
-            method: 'Cheque',
-            amt: amt,
-            date: date,
-            bank: document.getElementById('cqAddBank').value,
-            chkNo: document.getElementById('cqAddNo').value,
-            chkDate: document.getElementById('cqAddCqDate').value,
-            note: document.getElementById('cqAddNote').value,
-            cqStatus: 'Pending'
-        });
+        if (window.currentEditingPayIdx !== null && window.currentEditingPayIdx !== undefined) {
+            if (window.currentEditingPayIdx === -1) {
+                window.currentEditingInv.advMethod = 'Cheque';
+                window.currentEditingInv.advBank = document.getElementById('cqAddBank').value;
+                window.currentEditingInv.advChkNo = document.getElementById('cqAddNo').value;
+                window.currentEditingInv.advChkDate = document.getElementById('cqAddCqDate').value;
+                window.currentEditingInv.advNote = document.getElementById('cqAddNote').value;
+                window.currentEditingInv.advCqStatus = 'Pending';
+            } else {
+                let p = window.currentEditingInv.payments[window.currentEditingPayIdx];
+                p.method = 'Cheque';
+                p.bank = document.getElementById('cqAddBank').value;
+                p.chkNo = document.getElementById('cqAddNo').value;
+                p.chkDate = document.getElementById('cqAddCqDate').value;
+                p.note = document.getElementById('cqAddNote').value;
+                p.cqStatus = 'Pending';
+            }
+            alert("Cash Payment successfully converted to Cheque!");
+        } else {
+            if(!window.currentEditingInv.payments) window.currentEditingInv.payments = [];
+            window.currentEditingInv.paid = (window.currentEditingInv.paid || 0) + amt;
+            window.currentEditingInv.payments.push({
+                method: 'Cheque',
+                amt: amt,
+                date: date,
+                bank: document.getElementById('cqAddBank').value,
+                chkNo: document.getElementById('cqAddNo').value,
+                chkDate: document.getElementById('cqAddCqDate').value,
+                note: document.getElementById('cqAddNote').value,
+                cqStatus: 'Pending'
+            });
 
-        const bal = window.currentEditingInv.grand - (window.currentEditingInv.adv||0) - window.currentEditingInv.paid;
-        if(bal <= 0) window.currentEditingInv.status = 'Finished';
+            const bal = window.currentEditingInv.grand - (window.currentEditingInv.adv||0) - window.currentEditingInv.paid;
+            if(bal <= 0) window.currentEditingInv.status = 'Finished';
+            alert("Cheque Payment Added Successfully!");
+        }
 
         document.getElementById('cqAddDetails').style.display = 'none';
         document.getElementById('cqAddInv').value = "INV-";
+        document.getElementById('cqAddAmt').disabled = false;
         window.currentEditingInv = null;
+        window.currentEditingPayIdx = null;
         sync();
-        alert("Cheque Payment Added Successfully!");
     };
 
     window.fetchInvForOnline = function() {
@@ -2757,12 +2978,47 @@
         if(!s) return alert("Invoice not found!");
         
         const bal = s.grand - (s.adv||0) - (s.paid||0);
-        if(bal <= 0) return alert("This invoice is already fully paid!");
+        const listDiv = document.getElementById('onlConvertList');
+        
+        if(bal <= 0) {
+            let cashPaymentsHtml = '';
+            if (s.adv > 0 && (s.advMethod === 'Cash' || !s.advMethod)) {
+                cashPaymentsHtml += `<div style="padding:10px; border:1px solid #ddd; margin-bottom:10px;">Advance: Rs.${fmtNum(s.adv)} (Cash) <button class="btn btn-edit" style="padding:5px;" onclick="convertPayToOnline('${s.inv}', -1, ${s.adv})">Convert to Online</button></div>`;
+            }
+            if (s.payments) {
+                s.payments.forEach((p, idx) => {
+                    if (p.method === 'Cash' || !p.method) {
+                        cashPaymentsHtml += `<div style="padding:10px; border:1px solid #ddd; margin-bottom:10px;">Payment: Rs.${fmtNum(p.amt)} on ${p.date} (Cash) <button class="btn btn-edit" style="padding:5px;" onclick="convertPayToOnline('${s.inv}', ${idx}, ${p.amt})">Convert to Online</button></div>`;
+                    }
+                });
+            }
+            if(cashPaymentsHtml === '') {
+                return alert("This invoice is already fully paid and has no Cash payments to convert.");
+            }
+            listDiv.innerHTML = `<h4 style="margin-top:0;">Available Cash Payments to Convert:</h4>${cashPaymentsHtml}`;
+            listDiv.style.display = 'block';
+            document.getElementById('onlAddDetails').style.display = 'none';
+        } else {
+            listDiv.style.display = 'none';
+            window.currentOnlInv = s;
+            window.currentOnlPayIdx = null;
+            document.getElementById('onlAddShop').innerText = s.shop;
+            document.getElementById('onlAddBal').innerText = fmtNum(bal);
+            document.getElementById('onlAddAmt').value = bal; 
+            document.getElementById('onlAddDate').value = new Date().toISOString().substr(0,10);
+            document.getElementById('onlAddDetails').style.display = 'block';
+        }
+    };
 
+    window.convertPayToOnline = function(invNo, pIdx, amt) {
+        const s = db.sales.find(x => x.inv === invNo);
         window.currentOnlInv = s;
-        document.getElementById('onlAddShop').innerText = s.shop;
-        document.getElementById('onlAddBal').innerText = fmtNum(bal);
-        document.getElementById('onlAddAmt').value = bal; 
+        window.currentOnlPayIdx = pIdx;
+        document.getElementById('onlConvertList').style.display = 'none';
+        document.getElementById('onlAddShop').innerText = s.shop + " (CONVERTING CASH TO ONLINE)";
+        document.getElementById('onlAddBal').innerText = "N/A";
+        document.getElementById('onlAddAmt').value = amt;
+        document.getElementById('onlAddAmt').disabled = true;
         document.getElementById('onlAddDate').value = new Date().toISOString().substr(0,10);
         document.getElementById('onlAddDetails').style.display = 'block';
     };
@@ -2773,25 +3029,41 @@
         const date = document.getElementById('onlAddDate').value;
         if(isNaN(amt) || amt <= 0 || !date) return alert("Valid amount and date required!");
 
-        if(!window.currentOnlInv.payments) window.currentOnlInv.payments = [];
-        window.currentOnlInv.paid = (window.currentOnlInv.paid || 0) + amt;
-        window.currentOnlInv.payments.push({
-            method: 'Online Transfer',
-            amt: amt,
-            date: date,
-            bank: document.getElementById('onlAddBank').value,
-            slip: document.getElementById('onlAddSlip').value
-        });
-
-        const bal = window.currentOnlInv.grand - (window.currentOnlInv.adv||0) - window.currentOnlInv.paid;
-        if(bal <= 0) window.currentOnlInv.status = 'Finished';
-
+        if (window.currentOnlPayIdx !== null && window.currentOnlPayIdx !== undefined) {
+            if (window.currentOnlPayIdx === -1) {
+                window.currentOnlInv.advMethod = 'Online Transfer';
+                window.currentOnlInv.advBank = document.getElementById('onlAddBank').value;
+                window.currentOnlInv.advSlip = document.getElementById('onlAddSlip').value;
+            } else {
+                let p = window.currentOnlInv.payments[window.currentOnlPayIdx];
+                p.method = 'Online Transfer';
+                p.bank = document.getElementById('onlAddBank').value;
+                p.slip = document.getElementById('onlAddSlip').value;
+            }
+            alert("Cash Payment successfully converted to Online Transfer!");
+        } else {
+            if(!window.currentOnlInv.payments) window.currentOnlInv.payments = [];
+            window.currentOnlInv.paid = (window.currentOnlInv.paid || 0) + amt;
+            window.currentOnlInv.payments.push({
+                method: 'Online Transfer',
+                amt: amt,
+                date: date,
+                bank: document.getElementById('onlAddBank').value,
+                slip: document.getElementById('onlAddSlip').value
+            });
+            const bal = window.currentOnlInv.grand - (window.currentOnlInv.adv||0) - window.currentOnlInv.paid;
+            if(bal <= 0) window.currentOnlInv.status = 'Finished';
+            alert("Online Transfer Added Successfully!");
+        }
+        
         document.getElementById('onlAddDetails').style.display = 'none';
         document.getElementById('onlAddInv').value = "INV-";
+        document.getElementById('onlAddAmt').disabled = false;
         window.currentOnlInv = null;
+        window.currentOnlPayIdx = null;
         sync();
-        alert("Online Transfer Added Successfully!");
     };
+
 
     window.openCqModal = function(sIdx, pIdx, isAdv) {
         const s = db.sales[sIdx];
@@ -3225,7 +3497,6 @@
         } else alert("Shop WhatsApp number not found!");
     };
 
-    // UPDATE: New Bulk SMS Function with 2.5 seconds delay
     window.startBulkSMS = function() {
         let msg = document.getElementById('bulkSmsMsgBody').value;
         if(!msg.trim()) return alert("Message is empty!");
@@ -3245,14 +3516,14 @@
             targets.forEach((shop, index) => {
                 setTimeout(() => {
                     window.sendSystemSMS(shop.p1, msg);
-                }, index * 2500); // 2.5 seconds delay per SMS
+                }, index * 2500); 
             });
             alert("Bulk SMS Signals sending started...");
         }
     };
 
     window.closeOverdueNotif = function() {
-        localStorage.setItem('overdueNotifDate', new Date().toISOString().substr(0,10));
+        sessionStorage.setItem('overdueNotifDismissed', 'true');
         document.getElementById('overdueNotifBanner').style.display = 'none';
     };
 
@@ -3452,8 +3723,8 @@
         window.updateWaQueueUI(); 
     };
 
-window.render = function() {
-        ['shops','items','orders','sales','returns','deleted','tax','transactions','moulds','maintenance','withdrawals'].forEach(k => db[k] = db[k] || []);
+    window.render = function() {
+        ['shops','items','orders','sales','returns','deleted','tax','transactions','moulds','maintenance','withdrawals','notepad'].forEach(k => db[k] = db[k] || []);
         
         document.getElementById('globalItemOptions').innerHTML = db.items.map(i => `<option value="${i.name}">`).join(''); 
         document.getElementById('globalShopOptions').innerHTML = db.shops.map(s => `<option value="${s.name}">`).join('');
@@ -3477,6 +3748,24 @@ window.render = function() {
         updateMapMarkers(); 
         renderGrowthChart();
 
+        const dNow = new Date();
+        const todayStrForNotif = dNow.toISOString().substr(0,10);
+        const hasNoteAlert = db.notepad.some(n => n.date === todayStrForNotif && n.alert === true);
+        if (hasNoteAlert && sessionStorage.getItem('noteNotifDismissed') !== 'true' && document.getElementById('noteNotifBanner')) {
+            document.getElementById('noteNotifBanner').style.display = 'block';
+        }
+
+        let notepadArr = db.notepad.slice().sort((a,b) => new Date(b.date) - new Date(a.date));
+        if(document.getElementById('notepadBody')) {
+            let pNotes = window.getPaginated(notepadArr, 'notepad');
+            document.getElementById('notepadBody').innerHTML = pNotes.map((n, index) => {
+                const realIdx = db.notepad.indexOf(n);
+                const alertTag = n.alert ? `<span style="color:var(--danger); font-weight:bold;">🔔 Active</span>` : `<span style="color:gray;">Off</span>`;
+                return `<tr><td>${(curPage['notepad']-1)*PAGE_LIMIT + index + 1}</td><td style="font-weight:bold;">${n.date}</td><td>${n.text}</td><td>${alertTag}</td><td><div style="display:flex; gap:5px;"><button class="btn btn-edit" style="font-size:12px;padding:6px;" onclick="window.editNote(${realIdx})">Edit</button> <button class="btn btn-del" style="font-size:12px;padding:6px;" onclick="window.deleteNote(${realIdx})">Del</button></div></td></tr>`;
+            }).join('');
+            window.renderPg(notepadArr.length, 'notepad', 'pg-notepad');
+        }
+
         let soldTracker = {}; 
         let returnTracker = {};
         db.sales.forEach(s => { (s.items||[]).forEach(it => { soldTracker[it.n] = (soldTracker[it.n] || 0) + it.q; }); });
@@ -3488,15 +3777,26 @@ window.render = function() {
             } 
         });
 
-        // ---------------- CHEQUE PAYMENTS LOGIC ----------------
+        let stockList = db.items.map(i => {
+            let avail = i.stock - (soldTracker[i.name] || 0) + (returnTracker[i.name] || 0);
+            return Object.assign({}, i, { avail: avail });
+        });
+        
+        let lowStockItems = [];
+        stockList.forEach(i => { if (i.avail < 20) lowStockItems.push(`${i.name} (${i.avail})`); });
+        
+        if (lowStockItems.length > 0 && sessionStorage.getItem('lowStockNotifDismissed') !== 'true' && document.getElementById('lowStockNotifBanner')) {
+            document.getElementById('lowStockNames').innerText = lowStockItems.join(', ');
+            document.getElementById('lowStockNotifBanner').style.display = 'block';
+        }
+
         let chequeList = [];
         let hasPendingChequesToday = false;
-        const todayStr = new Date().toISOString().substr(0,10);
 
         db.sales.forEach((s, sIdx) => {
             if (s.advMethod === 'Cheque') {
                 let st = s.advCqStatus || 'Pending';
-                if(s.advChkDate && s.advChkDate === todayStr && st !== 'Finished' && st !== 'Rejected') hasPendingChequesToday = true;
+                if(s.advChkDate && s.advChkDate === todayStrForNotif && st !== 'Finished' && st !== 'Rejected') hasPendingChequesToday = true;
                 chequeList.push({ 
                     sIdx, pIdx: -1, isAdv: true,
                     shop: s.shop,
@@ -3516,7 +3816,7 @@ window.render = function() {
                 s.payments.forEach((p, pIdx) => {
                     if (p.method === 'Cheque') {
                         let st = p.cqStatus || 'Pending';
-                        if(p.chkDate && p.chkDate === todayStr && st !== 'Finished' && st !== 'Rejected') hasPendingChequesToday = true;
+                        if(p.chkDate && p.chkDate === todayStrForNotif && st !== 'Finished' && st !== 'Rejected') hasPendingChequesToday = true;
                         chequeList.push({ 
                             sIdx, pIdx, isAdv: false,
                             shop: s.shop,
@@ -3536,12 +3836,20 @@ window.render = function() {
             }
         });
 
-        let chequeNotifCount = chequeList.filter(c => c.chkDate === todayStr && c.status !== 'Finished' && c.status !== 'Rejected').length;
+        let chequeNotifCount = chequeList.filter(c => c.chkDate === todayStrForNotif && c.status !== 'Finished' && c.status !== 'Rejected').length;
         const lastChequeNotifDate = localStorage.getItem('chequeNotifDate');
         
-        if (hasPendingChequesToday && lastChequeNotifDate !== todayStr && document.getElementById('chequeNotifBanner')) {
-             document.getElementById('chequeNotifCount').innerText = chequeNotifCount;
-             document.getElementById('chequeNotifBanner').style.display = 'block';
+        if (hasPendingChequesToday && lastChequeNotifDate !== todayStrForNotif) {
+             if(document.getElementById('chequeNotifBanner')) {
+                 document.getElementById('chequeNotifCount').innerText = chequeNotifCount;
+                 document.getElementById('chequeNotifBanner').style.display = 'block';
+             }
+             if(!sessionStorage.getItem('chequeAutoSmsSentToday')) {
+                 let smsText = `YENUFLEX: අද දිනයට අදාළව බැංකුවට දැමීමට (Deposit/Encash) Cheque ${chequeNotifCount} ක් ඇත. පද්ධතිය පරීක්ෂා জ্ঞකරන්න.`;
+                 window.sendSystemSMS('+94715970549', smsText);
+                 setTimeout(() => window.sendSystemSMS('+94717096503', smsText), 2500);
+                 sessionStorage.setItem('chequeAutoSmsSentToday', 'true');
+             }
         }
 
         const cqCat = document.getElementById('cqCatFilter').value;
@@ -3664,12 +3972,18 @@ window.render = function() {
         let finItemsMap = {};
         let penItemsMap = {};
         let dsTotFinInc = 0, dsTotPenInc = 0, dsTotFinCost = 0, dsTotPenCost = 0;
+        
+        let dsFinInvoices = [];
+        let dsPenInvoices = [];
 
         db.sales.forEach(s => {
             if (dsDate && s.date !== dsDate) return;
             
             const bal = s.grand - (s.adv||0) - (s.paid||0);
             const isFin = s.status === 'Finished' || bal <= 0;
+
+            if (isFin) dsFinInvoices.push(s);
+            else dsPenInvoices.push(s);
 
             (s.items||[]).forEach(it => {
                 if (dsItem && it.n !== dsItem) return;
@@ -3711,7 +4025,7 @@ window.render = function() {
                 dsFinTotInc += i.inc; dsFinTotCost += i.cost; dsFinTotProf += prof;
                 finHtml += `<tr><td>${n}</td><td>${i.q}</td><td>Rs. ${fmtNum(i.inc)}</td><td>Rs. ${fmtNum(i.cost)}</td><td style="color:var(--primary);font-weight:bold;">Rs. ${fmtNum(prof)}</td></tr>`;
             });
-            document.getElementById('daySaleFinBody').innerHTML = finHtml || '<tr><td colspan="5" style="text-align:center;">No finished sales found.</td></tr>';
+            document.getElementById('daySaleFinBody').innerHTML = finHtml || '<tr><td colspan="5" style="text-align:center;">No finished sales items found.</td></tr>';
             document.getElementById('daySaleFinFooter').innerHTML = `<tr><td colspan="2" style="text-align:right;"><strong>Total:</strong></td><td style="color:var(--accent);">Rs. ${fmtNum(dsFinTotInc)}</td><td>Rs. ${fmtNum(dsFinTotCost)}</td><td style="color:var(--primary);">Rs. ${fmtNum(dsFinTotProf)}</td></tr>`;
 
             Object.keys(penItemsMap).sort().forEach(n => {
@@ -3720,8 +4034,40 @@ window.render = function() {
                 dsPenTotInc += i.inc; dsPenTotCost += i.cost; dsPenTotProf += prof;
                 penHtml += `<tr><td>${n}</td><td>${i.q}</td><td>Rs. ${fmtNum(i.inc)}</td><td>Rs. ${fmtNum(i.cost)}</td><td style="color:var(--primary);font-weight:bold;">Rs. ${fmtNum(prof)}</td></tr>`;
             });
-            document.getElementById('daySalePenBody').innerHTML = penHtml || '<tr><td colspan="5" style="text-align:center;">No pending sales found.</td></tr>';
+            document.getElementById('daySalePenBody').innerHTML = penHtml || '<tr><td colspan="5" style="text-align:center;">No pending sales items found.</td></tr>';
             document.getElementById('daySalePenFooter').innerHTML = `<tr><td colspan="2" style="text-align:right;"><strong>Total:</strong></td><td style="color:var(--edit);">Rs. ${fmtNum(dsPenTotInc)}</td><td>Rs. ${fmtNum(dsPenTotCost)}</td><td style="color:var(--primary);">Rs. ${fmtNum(dsPenTotProf)}</td></tr>`;
+
+            document.getElementById('dsFinInvBody').innerHTML = dsFinInvoices.length > 0 ? dsFinInvoices.map((s, i) => {
+                const b = s.grand - (s.adv||0) - (s.paid||0);
+                let itemsHtml = (s.items||[]).map(x=>`${x.n} - Rs.${fmtNum(x.p)} x ${x.q} = Rs.${fmtNum(x.p*x.q)}`).join('<br>');
+                return `<tr><td>${i+1}</td><td>${s.inv}</td><td style="font-weight:bold;">${s.shop}</td><td>${itemsHtml}</td><td>Rs. ${fmtNum(s.grand)}</td><td>Rs. ${fmtNum((s.adv||0)+(s.paid||0))}</td><td style="color:var(--accent);font-weight:bold;">Rs. ${fmtNum(b)}</td></tr>`;
+            }).join('') : '<tr><td colspan="7" style="text-align:center;">No finished invoices found for this date.</td></tr>';
+
+            document.getElementById('dsPenInvBody').innerHTML = dsPenInvoices.length > 0 ? dsPenInvoices.map((s, i) => {
+                const b = s.grand - (s.adv||0) - (s.paid||0);
+                let itemsHtml = (s.items||[]).map(x=>`${x.n} - Rs.${fmtNum(x.p)} x ${x.q} = Rs.${fmtNum(x.p*x.q)}`).join('<br>');
+                return `<tr><td>${i+1}</td><td>${s.inv}</td><td style="font-weight:bold;">${s.shop}</td><td>${itemsHtml}</td><td>Rs. ${fmtNum(s.grand)}</td><td>Rs. ${fmtNum((s.adv||0)+(s.paid||0))}</td><td style="color:var(--danger);font-weight:bold;">Rs. ${fmtNum(b)}</td></tr>`;
+            }).join('') : '<tr><td colspan="7" style="text-align:center;">No pending invoices found for this date.</td></tr>';
+
+            let monthPrefix = (dsDate || todayStrForNotif).substring(0, 7);
+            let daysInM = new Date(monthPrefix.substring(0,4), monthPrefix.substring(5,7), 0).getDate();
+            let dLabels = [], dData = [];
+            for(let i=1; i<=daysInM; i++) { dLabels.push(i); dData.push(0); }
+            db.sales.forEach(s => {
+                if(s.date.startsWith(monthPrefix)) {
+                    let dayNum = parseInt(s.date.substring(8,10));
+                    dData[dayNum - 1] += s.grand;
+                }
+            });
+            if(window.dsMonthChartInstance) window.dsMonthChartInstance.destroy();
+            window.dsMonthChartInstance = new Chart(document.getElementById('dsMonthlyChartCanvas').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: dLabels,
+                    datasets: [{ label: `Daily Sales - ${monthPrefix} (Rs)`, data: dData, backgroundColor: '#3498db', borderColor: '#2980b9', borderWidth: 1 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
         }
 
         let shopSearch = document.getElementById('searchShopName') ? document.getElementById('searchShopName').value.toLowerCase() : "";
@@ -3759,11 +4105,6 @@ window.render = function() {
             }).join('');
             window.renderPg(filteredItems.length, 'items', 'pg-items');
         }
-
-        let stockList = db.items.map(i => {
-            let avail = i.stock - (soldTracker[i.name] || 0) + (returnTracker[i.name] || 0);
-            return Object.assign({}, i, { avail: avail });
-        });
 
         stockList.sort((a,b) => a.name.localeCompare(b.name));
 
@@ -3931,22 +4272,29 @@ window.render = function() {
         }
 
         const fWdYear = document.getElementById('fWdYear') ? document.getElementById('fWdYear').value : "";
+        const fWdCat = document.getElementById('fWdCat') ? document.getElementById('fWdCat').value : "";
         const sortWd = document.getElementById('sortWd') ? document.getElementById('sortWd').value : "date-desc";
 
-        let wdArr = db.withdrawals.filter(w => fWdYear === "" || (w.date || '').startsWith(fWdYear));
+        let wdArr = db.withdrawals.filter(w => {
+            if (fWdYear && !(w.date || '').startsWith(fWdYear)) return false;
+            if (fWdCat && (w.cat || 'Personal Withdrawal') !== fWdCat) return false;
+            return true;
+        });
+
         if (sortWd === 'date-desc') wdArr.sort((a,b) => new Date(b.date) - new Date(a.date));
         else if (sortWd === 'date-asc') wdArr.sort((a,b) => new Date(a.date) - new Date(b.date));
         else if (sortWd === 'desc-az') wdArr.sort((a,b) => a.desc.localeCompare(b.desc));
         else if (sortWd === 'desc-za') wdArr.sort((a,b) => b.desc.localeCompare(a.desc));
 
-        let totWd = 0; wdArr.forEach(w => totWd += w.amt);
+        let totWd = 0; wdArr.forEach(w => totWd += (w.amt + (w.servCharge||0)));
         if(document.getElementById('wdTotal')) document.getElementById('wdTotal').innerText = fmtNum(totWd);
 
         if(document.getElementById('withdrawalsBody')) {
             let pWd = window.getPaginated(wdArr, 'withdrawals');
             document.getElementById('withdrawalsBody').innerHTML = pWd.map((w, index) => {
                 const realIdx = db.withdrawals.indexOf(w);
-                return `<tr><td>${(curPage['withdrawals']-1)*PAGE_LIMIT + index + 1}</td><td>${w.date}</td><td style="font-weight:bold;color:#8e44ad;">${w.cat || 'Personal Withdrawal'}</td><td>${w.desc}</td><td style="font-weight:bold;color:#9b59b6;">Rs. ${fmtNum(w.amt)}</td><td>${w.method || 'Cash'}</td><td><button class="btn btn-del" style="font-size:12px;padding:6px;" onclick="window.deleteWithdrawal(${realIdx})">Del</button></td></tr>`;
+                const sChargeTxt = w.servCharge > 0 ? `<br><small style="color:var(--danger)">+ Rs.${fmtNum(w.servCharge)} Bank Charge</small>` : '';
+                return `<tr><td>${(curPage['withdrawals']-1)*PAGE_LIMIT + index + 1}</td><td>${w.date}</td><td style="font-weight:bold;color:#8e44ad;">${w.cat || 'Personal Withdrawal'}</td><td>${w.desc}</td><td style="font-weight:bold;color:#9b59b6;">Rs. ${fmtNum(w.amt)}${sChargeTxt}</td><td>${w.method || 'Cash'}</td><td><button class="btn btn-del" style="font-size:12px;padding:6px;" onclick="window.deleteWithdrawal(${realIdx})">Del</button></td></tr>`;
             }).join('');
             window.renderPg(wdArr.length, 'withdrawals', 'pg-withdrawals');
         }
@@ -4004,7 +4352,14 @@ window.render = function() {
         });
 
         db.maintenance.forEach(m => { transactions.push({ date: m.date, payee: m.payee || '-', desc: `Maintenance: ${m.desc}`, method: m.method, bankDetails: `${m.bank || ''} ${m.acc || ''} ${m.slip || ''} ${m.chkNo || ''}`, type: 'out', amt: m.amt }); });
-        db.withdrawals.forEach(w => { transactions.push({ date: w.date, payee: 'Self', desc: `Withdrawal (${w.cat || 'Personal Withdrawal'}): ${w.desc}`, method: w.method, bankDetails: `${w.bank || ''} ${w.acc || ''} ${w.slip || ''} ${w.chkNo || ''}`, type: 'out', amt: w.amt }); });
+        
+        db.withdrawals.forEach(w => { 
+            transactions.push({ date: w.date, payee: 'Self', desc: `Withdrawal (${w.cat || 'Personal Withdrawal'}): ${w.desc}`, method: w.method, bankDetails: `${w.bank || ''} ${w.acc || ''} ${w.slip || ''} ${w.chkNo || ''}`, type: 'out', amt: w.amt });
+            if (w.servCharge && w.servCharge > 0) {
+                transactions.push({ date: w.date, payee: 'Bank', desc: `Bank Service Charge (Online Transfer)`, method: 'Online Transfer', bankDetails: '', type: 'out', amt: w.servCharge });
+            }
+        });
+
         db.tax.forEach(t => { transactions.push({ date: t.date, payee: 'Tax Authority', desc: `Tax Payment (${t.year})`, method: t.method, bankDetails: `${t.bank || ''} ${t.slip || ''} ${t.chkNo || ''}`, type: 'out', amt: t.amt }); });
         
         db.moulds.forEach(m => {
@@ -4072,7 +4427,7 @@ window.render = function() {
             window.renderPg(filteredTx.length, 'ebook', 'pg-ebook');
         }
 
-        let dNow = new Date();
+        let dNowStr = new Date().toISOString().substr(0,10);
         const fIncExpYear = document.getElementById('fIncExpYear') ? document.getElementById('fIncExpYear').value : "";
         
         let mouldTotal = 0;
@@ -4106,21 +4461,26 @@ window.render = function() {
         }
 
         const fProgYear = document.getElementById('fProgYear') ? document.getElementById('fProgYear').value : "";
-        let currM = dNow.toISOString().substr(0,7); 
+        let currM = dNowStr.substring(0,7); 
         let mTotal = 0, yTotal = 0, advTotal = 0;
         let itemRevMap = {};
         let itemQtyMap = {};
+        let itemCostMapProg1 = {};
         
         db.sales.forEach(s => {
             let inYear = fProgYear === "" || (s.date||'').startsWith(fProgYear);
             if(s.date.startsWith(currM) && inYear) mTotal += s.grand;
-            if(s.date.startsWith(fProgYear || dNow.getFullYear().toString())) yTotal += s.grand;
+            if(s.date.startsWith(fProgYear || dNowStr.substring(0,4))) yTotal += s.grand;
             
             if(inYear) {
                 advTotal += s.adv || 0;
                 (s.items||[]).forEach(it => {
+                    const itemRef = db.items.find(x => x.name === it.n) || {};
+                    const uCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
+
                     itemRevMap[it.n] = (itemRevMap[it.n] || 0) + (it.q * it.p);
                     itemQtyMap[it.n] = (itemQtyMap[it.n] || 0) + it.q;
+                    itemCostMapProg1[it.n] = (itemCostMapProg1[it.n] || 0) + (it.q * uCost);
                 });
             }
         });
@@ -4131,7 +4491,17 @@ window.render = function() {
             document.getElementById('statAdv').innerText = `Rs. ${fmtNum(advTotal)}`;
             
             let sortedItems = Object.keys(itemRevMap).sort((a,b) => itemRevMap[b] - itemRevMap[a]);
-            document.getElementById('itemStatsGrid').innerHTML = sortedItems.map(k => `<div class="box" style="border: 2px solid #bdc3c7; background: #fff;"><strong style="color:#2c3e50; font-size:15px;">${k}</strong> <small style="color:#c0392b; font-weight:bold; font-size:14px;">(${itemQtyMap[k]} Sold)</small><br><span style="color:#1e8449; font-weight:800; font-size:19px;">Rs. ${fmtNum(itemRevMap[k])}</span></div>`).join('');
+            document.getElementById('itemStatsGrid').innerHTML = sortedItems.map(k => {
+                let rev = itemRevMap[k];
+                let cost = itemCostMapProg1[k] || 0;
+                let prof = rev - cost;
+                return `<div class="box" style="border: 2px solid #bdc3c7; background: #fff;">
+                    <strong style="color:#2c3e50; font-size:15px;">${k}</strong> <small style="color:#c0392b; font-weight:bold; font-size:14px;">(${itemQtyMap[k]} Sold)</small><br>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px; font-size:13px; color:#555;"><span>Revenue:</span> <strong>Rs. ${fmtNum(rev)}</strong></div>
+                    <div style="display:flex; justify-content:space-between; font-size:13px; color:#555;"><span>Cost:</span> <strong style="color:var(--danger)">- Rs. ${fmtNum(cost)}</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px; padding-top:5px; border-top:1px dashed #ccc; font-size:15px; color:#1e8449; font-weight:800;"><span>Profit:</span> <span>Rs. ${fmtNum(prof)}</span></div>
+                </div>`;
+            }).join('');
             
             if(window.itemChartInstance) window.itemChartInstance.destroy();
             const ctx = document.getElementById('itemRevChartCanvas');
@@ -4147,10 +4517,11 @@ window.render = function() {
             }
         }
 
-        const pYear = document.getElementById('profitYearSelect') ? document.getElementById('profitYearSelect').value : dNow.getFullYear().toString();
+        const pYear = document.getElementById('profitYearSelect') ? document.getElementById('profitYearSelect').value : dNowStr.substring(0,4);
         let mProf = 0, yProf = 0;
         let mProfData = [0,0,0,0,0,0,0,0,0,0,0,0];
         let itemProfMap = {}, itemMonthProfMap = {}, itemProfQtyMap = {};
+        let itemProfRevMap = {}, itemProfCostMap = {};
         
         db.items.forEach(i => { itemMonthProfMap[i.name] = [0,0,0,0,0,0,0,0,0,0,0,0]; });
 
@@ -4160,7 +4531,9 @@ window.render = function() {
                 (s.items||[]).forEach(it => {
                     const itemRef = db.items.find(x => x.name === it.n) || {};
                     const uCost = it.c !== undefined ? parseFloat(it.c) : (itemRef.cost || 0);
-                    let profit = (it.p - uCost) * it.q;
+                    let rev = it.p * it.q;
+                    let cost = uCost * it.q;
+                    let profit = rev - cost;
                     yProf += profit;
                     if(s.date.startsWith(currM)) mProf += profit;
                     
@@ -4171,6 +4544,8 @@ window.render = function() {
                     }
                     itemProfMap[it.n] = (itemProfMap[it.n] || 0) + profit;
                     itemProfQtyMap[it.n] = (itemProfQtyMap[it.n] || 0) + it.q;
+                    itemProfRevMap[it.n] = (itemProfRevMap[it.n] || 0) + rev;
+                    itemProfCostMap[it.n] = (itemProfCostMap[it.n] || 0) + cost;
                 });
             }
         });
@@ -4180,7 +4555,17 @@ window.render = function() {
             document.getElementById('p2Yearly').innerText = `Rs. ${fmtNum(yProf)}`;
             
             let pItems = Object.keys(itemProfMap).sort((a,b) => itemProfMap[b] - itemProfMap[a]);
-            document.getElementById('p2ItemStatsGrid').innerHTML = pItems.map(k => `<div class="box" style="border: 2px solid #bdc3c7; background: #fff;"><strong style="color:#2c3e50; font-size:15px;">${k}</strong> <small style="color:#c0392b; font-weight:bold; font-size:14px;">(${itemProfQtyMap[k]} Sold)</small><br><span style="color:#1e8449; font-weight:800; font-size:19px;">Rs. ${fmtNum(itemProfMap[k])}</span></div>`).join('');
+            document.getElementById('p2ItemStatsGrid').innerHTML = pItems.map(k => {
+                let rev = itemProfRevMap[k];
+                let cost = itemProfCostMap[k];
+                let prof = itemProfMap[k];
+                return `<div class="box" style="border: 2px solid #bdc3c7; background: #fff;">
+                    <strong style="color:#2c3e50; font-size:15px;">${k}</strong> <small style="color:#c0392b; font-weight:bold; font-size:14px;">(${itemProfQtyMap[k]} Sold)</small><br>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px; font-size:13px; color:#555;"><span>Revenue:</span> <strong>Rs. ${fmtNum(rev)}</strong></div>
+                    <div style="display:flex; justify-content:space-between; font-size:13px; color:#555;"><span>Cost:</span> <strong style="color:var(--danger)">- Rs. ${fmtNum(cost)}</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px; padding-top:5px; border-top:1px dashed #ccc; font-size:15px; color:#1e8449; font-weight:800;"><span>Profit:</span> <span>Rs. ${fmtNum(prof)}</span></div>
+                </div>`;
+            }).join('');
             
             let sortedProfItems = Object.keys(itemMonthProfMap).sort();
             let monthTotals = [0,0,0,0,0,0,0,0,0,0,0,0];
@@ -4208,27 +4593,35 @@ window.render = function() {
         const overdueLimit = 21; 
         const fOverdueShop = document.getElementById('fOverdueShop') ? document.getElementById('fOverdueShop').value : "";
         let overdueArr = [];
+        let overdueTotGrand = 0;
+        let overdueTotPaid = 0;
+        let overdueTotBal = 0;
+        let diffNowDate = new Date();
+
         db.sales.forEach((s, sIdx) => {
             const bal = s.grand - (s.adv||0) - (s.paid||0);
             if (s.status !== 'Finished' && s.status !== 'Returned' && bal > 0) {
-                const diffTime = Math.abs(dNow - new Date(s.date));
+                const diffTime = Math.abs(diffNowDate - new Date(s.date));
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 if (diffDays >= overdueLimit) {
                     s.diffDays = diffDays;
                     s.realIdx = sIdx;
-                    overdueArr.push(s);
+                    
+                    if (fOverdueShop === "" || s.shop === fOverdueShop) {
+                        overdueTotGrand += s.grand;
+                        overdueTotPaid += ((s.adv||0) + (s.paid||0));
+                        overdueTotBal += bal;
+                        overdueArr.push(s);
+                    }
                 }
             }
         });
 
-        const todayStrForNotif = dNow.toISOString().substr(0,10);
-        const lastNotifDate = localStorage.getItem('overdueNotifDate');
-        if(overdueArr.length > 0 && lastNotifDate !== todayStrForNotif && document.getElementById('overdueNotifBanner')) {
+        if(overdueArr.length > 0 && sessionStorage.getItem('overdueNotifDismissed') !== 'true' && document.getElementById('overdueNotifBanner')) {
             document.getElementById('overdueNotifCount').innerText = overdueArr.length;
             document.getElementById('overdueNotifBanner').style.display = 'block';
         }
 
-        if (fOverdueShop) overdueArr = overdueArr.filter(s => s.shop === fOverdueShop);
         overdueArr.sort((a,b) => b.diffDays - a.diffDays);
 
         if(document.getElementById('overdueBody')) {
@@ -4237,12 +4630,14 @@ window.render = function() {
                 const bal = s.grand - (s.adv||0) - (s.paid||0);
                 return `<tr><td>${(curPage['overdue']-1)*PAGE_LIMIT + index + 1}</td><td>${s.inv}</td><td>${s.date} <br><span style="color:var(--danger);font-size:11px;font-weight:bold;">(${s.diffDays} Days Overdue)</span></td><td style="font-weight:bold;color:var(--primary);">${s.shop}</td><td>${(s.items||[]).map(x=>`${x.n} - Rs.${fmtNum(x.p)} x ${x.q} = Rs.${fmtNum(x.p*x.q)}`).join('<br>')}</td><td>Rs. ${fmtNum(s.grand)}</td><td>Rs. ${fmtNum((s.adv||0)+(s.paid||0))}</td><td style="color:red;font-weight:bold;">Rs. ${fmtNum(bal)}</td><td><div style="display:flex; gap:5px; flex-wrap:wrap;"><button class="btn btn-wa" style="font-size:12px;padding:6px;" onclick="window.sendOverdueWA(${s.realIdx})">WA</button> <button class="btn btn-info" style="font-size:12px;padding:6px;" onclick="window.sendOverdueSMS(${s.realIdx})">SMS</button> <button class="btn btn-edit" style="font-size:12px;padding:6px;" onclick="changeTab('pending-pay'); window.openPayModal(${s.realIdx});">Pay</button></div></td></tr>`;
             }).join('');
+            
+            document.getElementById('overdueFooter').innerHTML = `<tr><td colspan="5" style="text-align:right;"><strong>TOTAL OVERDUE:</strong></td><td style="font-size:15px;color:var(--primary);"><strong>Rs. ${fmtNum(overdueTotGrand)}</strong></td><td style="font-size:15px;color:var(--accent);"><strong>Rs. ${fmtNum(overdueTotPaid)}</strong></td><td style="color:red;font-size:15px;"><strong>Rs. ${fmtNum(overdueTotBal)}</strong></td><td></td></tr>`;
             window.renderPg(overdueArr.length, 'overdue', 'pg-overdue');
         }
     };
 
     window.resetFilters = function() {
-        ['cqCatFilter','cqShopSelect','cqStatusFilter','onlCatFilter','onlShopSelect','searchShopName','filterShopCat','sortShops','searchItemName','fShop','fPenPayYear','sortPenPay','fFinPayShop','fFinPayYear','sortFinPay','fOverdueShop','fEbYear','fEbType','fEbMethod','fEbPayee','fTaxYear','fMtYear','sortMt','fWdYear','sortWd','fMouldYear','penAllCat','penAllShop','daySaleDate','daySaleItem','fOrdCat','fOrdShop'].forEach(id => {
+        ['cqCatFilter','cqShopSelect','cqStatusFilter','onlCatFilter','onlShopSelect','searchShopName','filterShopCat','sortShops','searchItemName','fShop','fPenPayYear','sortPenPay','fFinPayShop','fFinPayYear','sortFinPay','fOverdueShop','fEbYear','fEbType','fEbMethod','fEbPayee','fTaxYear','fMtYear','sortMt','fWdYear','fWdCat','sortWd','fMouldYear','penAllCat','penAllShop','daySaleDate','daySaleItem','fOrdCat','fOrdShop'].forEach(id => {
             if(document.getElementById(id)) document.getElementById(id).value = "";
         });
         
@@ -4279,6 +4674,7 @@ window.render = function() {
 
     window.initSystemUI = function() {
         document.getElementById('daySaleDate').value = new Date().toISOString().substr(0,10);
+        document.getElementById('noteDate').value = new Date().toISOString().substr(0,10);
         window.render();
     };
 
