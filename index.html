@@ -1626,6 +1626,35 @@
         document.getElementById('invHistoryOverlay').style.display = 'flex';
     };
 
+    window.showMouldHistory = function(idx) {
+        const m = db.moulds[idx];
+        if(!m) return;
+        
+        let hist = `Mould Name: ${m.name}\nItem: ${m.item || '-'}\nMaker: ${m.maker || '-'}\nTotal Cost: Rs. ${fmtNum(m.price)}\n\n`;
+        hist += `--- Payment History ---\n`;
+        let totPaid = 0;
+        if(m.advAmt > 0) {
+            hist += `[${m.advDate || m.date || '-'}] Advance: Rs. ${fmtNum(m.advAmt)} (${m.advMethod || 'Cash'})\n`;
+            totPaid += m.advAmt;
+        }
+        if(m.payments && m.payments.length > 0) {
+            m.payments.forEach(p => {
+                hist += `[${p.date}] Payment: Rs. ${fmtNum(p.amt)} (${p.method})\n`;
+                totPaid += p.amt;
+            });
+        } else if ((m.paid || 0) > (m.advAmt || 0) && !m.payments) {
+            let paidLater = (m.paid || 0) - (m.advAmt || 0);
+            hist += `[${m.date || '-'}] Payment: Rs. ${fmtNum(paidLater)} (Cash)\n`;
+            totPaid += paidLater;
+        }
+        
+        let bal = m.price - totPaid;
+        hist += `\nTotal Paid: Rs. ${fmtNum(totPaid)}\nBalance Due: Rs. ${fmtNum(bal > 0 ? bal : 0)}\n\n`;
+        
+        document.getElementById('invHistoryContent').innerText = hist;
+        document.getElementById('invHistoryOverlay').style.display = 'flex';
+    };
+
     window.copyInvHistory = function() {
         const text = document.getElementById('invHistoryContent').innerText;
         navigator.clipboard.writeText(text).then(() => {
@@ -4088,7 +4117,9 @@ window.confirmPay = function() {
             let pShops = window.getPaginated(filteredShops, 'shops');
             document.getElementById('shopBody').innerHTML = pShops.map((s, index) => {
                 const realIdx = db.shops.indexOf(s);
-                return `<tr><td>${(curPage['shops']-1)*PAGE_LIMIT + index + 1}</td><td><img src="${s.img || ''}" class="thumb" style="display:${s.img?'block':'none'}" onclick="openLightbox(this.src)"></td><td style="font-weight:bold;color:var(--primary);">${s.name}</td><td>${s.category || 'Other'}</td><td>${s.address || s.addr || ''}</td><td>${s.loc ? `<a href="${s.loc}" target="_blank" style="color:var(--info); font-weight:bold;">📍 Map</a>` : '-'}</td><td>WA: ${s.p1 || '-'}<br>N: ${s.p2 || '-'}</td><td><button class="btn btn-wa" style="font-size:12px;padding:6px;width:100%" onclick="window.triggerCall(${realIdx})">📞 Call</button></td><td>${s.notes || '-'}</td><td><div style="display:flex; gap:5px;"><button class="btn btn-edit" style="font-size:12px;padding:6px;" onclick="window.editShop(${realIdx})">Edit</button> <button class="btn btn-del" style="font-size:12px;padding:6px;" onclick="window.deleteShop(${realIdx})">Del</button></div></td></tr>`;
+                let mapLink = s.loc;
+                if(mapLink && !mapLink.startsWith('http')) { mapLink = `https://maps.google.com/?q=${mapLink}`; }
+                return `<tr><td>${(curPage['shops']-1)*PAGE_LIMIT + index + 1}</td><td><img src="${s.img || ''}" class="thumb" style="display:${s.img?'block':'none'}" onclick="openLightbox(this.src)"></td><td style="font-weight:bold;color:var(--primary);">${s.name}</td><td>${s.category || 'Other'}</td><td>${s.address || s.addr || ''}</td><td>${s.loc ? `<a href="${mapLink}" target="_blank" style="color:var(--info); font-weight:bold;">📍 Map</a>` : '-'}</td><td>WA: ${s.p1 || '-'}<br>N: ${s.p2 || '-'}</td><td><button class="btn btn-wa" style="font-size:12px;padding:6px;width:100%" onclick="window.triggerCall(${realIdx})">📞 Call</button></td><td>${s.notes || '-'}</td><td><div style="display:flex; gap:5px;"><button class="btn btn-edit" style="font-size:12px;padding:6px;" onclick="window.editShop(${realIdx})">Edit</button> <button class="btn btn-del" style="font-size:12px;padding:6px;" onclick="window.deleteShop(${realIdx})">Del</button></div></td></tr>`;
             }).join('');
             window.renderPg(filteredShops.length, 'shops', 'pg-shops');
         }
@@ -4318,7 +4349,7 @@ window.confirmPay = function() {
                 totMouldPaidLater += paidLater;
                 totMouldBal += bal;
                 
-                return `<tr><td>${(curPage['moulds']-1)*PAGE_LIMIT + index + 1}</td><td>${m.date}</td><td style="font-weight:bold;color:var(--mould);">${m.name}</td><td>${m.item || '-'}</td><td>${m.maker || '-'}</td><td>Rs. ${fmtNum(m.price)}</td><td>Rs. ${fmtNum(m.advAmt || 0)}</td><td>Rs. ${fmtNum(paidLater)}</td><td style="color:red;font-weight:bold;">Rs. ${fmtNum(bal)}</td><td><div style="display:flex; gap:5px;"><button class="btn btn-edit" style="font-size:12px;padding:6px;" onclick="window.editMould(${realIdx})">Edit</button> <button class="btn btn-info" style="font-size:12px;padding:6px;" onclick="window.openMdPayModal(${realIdx})">Pay</button> <button class="btn btn-del" style="font-size:12px;padding:6px;" onclick="window.deleteMould(${realIdx})">Del</button></div></td></tr>`;
+                return `<tr><td>${(curPage['moulds']-1)*PAGE_LIMIT + index + 1}</td><td>${m.date}</td><td><span style="font-weight:bold;color:var(--mould);cursor:pointer;text-decoration:underline;" onclick="window.showMouldHistory(${realIdx})" title="Click to view Payment History">${m.name}</span></td><td>${m.item || '-'}</td><td>${m.maker || '-'}</td><td>Rs. ${fmtNum(m.price)}</td><td>Rs. ${fmtNum(m.advAmt || 0)}</td><td>Rs. ${fmtNum(paidLater)}</td><td style="color:red;font-weight:bold;">Rs. ${fmtNum(bal)}</td><td><div style="display:flex; gap:5px;"><button class="btn btn-edit" style="font-size:12px;padding:6px;" onclick="window.editMould(${realIdx})">Edit</button> <button class="btn btn-info" style="font-size:12px;padding:6px;" onclick="window.openMdPayModal(${realIdx})">Pay</button> <button class="btn btn-del" style="font-size:12px;padding:6px;" onclick="window.deleteMould(${realIdx})">Del</button></div></td></tr>`;
             }).join('');
             
             if(document.getElementById('mouldFooter')) {
