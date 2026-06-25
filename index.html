@@ -1591,38 +1591,152 @@
         .catch(error => console.error("Error sending webhook:", error));
     };
 
+    window.deletePaymentItem = function(type, itemIdx, pIdx, isAdvance) {
+        let pwd = prompt("Enter Password to Delete Payment:");
+        if(pwd !== '#1234') return alert("Incorrect Password!");
+        if(!confirm("Are you sure you want to delete this payment?")) return;
+        
+        let obj = type === 'sale' ? db.sales[itemIdx] : db.moulds[itemIdx];
+        if(!obj) return;
+        
+        if(isAdvance) {
+            if(type === 'sale') {
+                obj.paid = (obj.paid || 0) - (obj.adv || 0);
+                if(obj.paid < 0) obj.paid = 0;
+                obj.adv = 0; obj.advMethod = ""; obj.advDate = ""; obj.advBank = ""; obj.advChkNo = "";
+            } else {
+                obj.paid = (obj.paid || 0) - (obj.advAmt || 0);
+                if(obj.paid < 0) obj.paid = 0;
+                obj.advAmt = 0; obj.advMethod = ""; obj.advDate = ""; obj.advBank = ""; obj.advChkNo = "";
+            }
+        } else {
+            if(pIdx === -2) {
+                if(type === 'sale') {
+                    obj.paid = obj.adv || 0;
+                } else {
+                    obj.paid = obj.advAmt || 0;
+                }
+            } else {
+                if(obj.payments && obj.payments[pIdx]) {
+                    let amt = obj.payments[pIdx].amt;
+                    obj.payments.splice(pIdx, 1);
+                    obj.paid = (obj.paid || 0) - amt;
+                    if(obj.paid < 0) obj.paid = 0;
+                }
+            }
+        }
+        
+        if(type === 'sale') {
+            const bal = obj.grand - (obj.adv||0) - (obj.paid||0);
+            if(bal > 0) obj.status = 'Pending';
+        }
+        
+        sync();
+        if(type === 'sale') window.showInvHistory(obj.inv);
+        else window.showMouldHistory(itemIdx);
+    };
+
+    window.editPaymentItem = function(type, itemIdx, pIdx, isAdvance) {
+        let pwd = prompt("Enter Password to Edit Payment:");
+        if(pwd !== '#1234') return alert("Incorrect Password!");
+        
+        let obj = type === 'sale' ? db.sales[itemIdx] : db.moulds[itemIdx];
+        if(!obj) return;
+        
+        let oldAmt = 0;
+        if(isAdvance) {
+            oldAmt = type === 'sale' ? (obj.adv || 0) : (obj.advAmt || 0);
+        } else {
+            if(pIdx === -2) {
+                oldAmt = type === 'sale' ? (obj.paid - (obj.adv||0)) : ((obj.paid||0) - (obj.advAmt||0));
+            } else if(obj.payments && obj.payments[pIdx]) {
+                oldAmt = obj.payments[pIdx].amt;
+            }
+        }
+        
+        let newAmtStr = prompt("Enter New Amount:", oldAmt);
+        if(!newAmtStr) return;
+        let newAmt = parseFloat(newAmtStr);
+        if(isNaN(newAmt) || newAmt < 0) return alert("Invalid Amount!");
+        
+        let diff = newAmt - oldAmt;
+        
+        if(isAdvance) {
+            if(type === 'sale') {
+                obj.adv = newAmt;
+            } else {
+                obj.advAmt = newAmt;
+            }
+        } else {
+            if(pIdx === -2) {
+                obj.payments = obj.payments || [];
+                obj.payments.push({ amt: newAmt, date: obj.date, method: 'Cash' });
+            } else {
+                if(obj.payments && obj.payments[pIdx]) {
+                    obj.payments[pIdx].amt = newAmt;
+                }
+            }
+        }
+        
+        obj.paid = (obj.paid || 0) + diff;
+        
+        if(type === 'sale') {
+            const bal = obj.grand - (obj.adv||0) - (obj.paid||0);
+            if(bal > 0) obj.status = 'Pending';
+            else obj.status = 'Finished';
+        }
+        
+        sync();
+        if(type === 'sale') window.showInvHistory(obj.inv);
+        else window.showMouldHistory(itemIdx);
+    };
+
     window.showInvHistory = function(invNo) {
         const matchingSales = db.sales.filter(x => x.inv === invNo);
         if(matchingSales.length === 0) return;
         
-        let hist = "";
+        let histHTML = "";
+        let plainHist = "";
         matchingSales.forEach((s, index) => {
+            const realIdx = db.sales.indexOf(s);
             if(matchingSales.length > 1) {
-                hist += `====================================\n`;
-                hist += `📜 INVOICE RECORD ${index + 1}\n`;
-                hist += `====================================\n`;
+                histHTML += `<div style="border-bottom:2px solid #ccc; margin:10px 0;"></div>`;
+                histHTML += `<h4>🛒 INVOICE RECORD ${index + 1}</h4>`;
+                plainHist += `====================================\n🛒 INVOICE RECORD ${index + 1}\n====================================\n`;
             }
-            hist += `Invoice No: ${s.inv}\nShop: ${s.shop}\nDate: ${s.date}\nGrand Total: Rs. ${fmtNum(s.grand)}\n\n`;
-            hist += `--- Payment History ---\n`;
+            histHTML += `<b>Invoice No:</b> ${s.inv}<br><b>Shop:</b> ${s.shop}<br><b>Date:</b> ${s.date}<br><b>Grand Total:</b> Rs. ${fmtNum(s.grand)}<br><br>`;
+            plainHist += `Invoice No: ${s.inv}\nShop: ${s.shop}\nDate: ${s.date}\nGrand Total: Rs. ${fmtNum(s.grand)}\n\n`;
+            
+            histHTML += `<b>--- Payment History ---</b><br><table style="width:100%; font-size:13px; margin-top:5px; border-collapse:collapse;">`;
+            plainHist += `--- Payment History ---\n`;
             let totPaid = 0;
+            
+            const btnStyle = "padding:2px 6px; font-size:11px; margin-left:5px; cursor:pointer;";
             if(s.adv > 0) {
-                hist += `[${s.advDate || s.date}] Advance: Rs. ${fmtNum(s.adv)} (${s.advMethod || 'Cash'})\n`;
+                histHTML += `<tr><td style="padding:4px; border-bottom:1px solid #eee;">[${s.advDate || s.date}] Advance: Rs. ${fmtNum(s.adv)} (${s.advMethod || 'Cash'})</td><td style="padding:4px; border-bottom:1px solid #eee; text-align:right;"><button style="${btnStyle}" onclick="window.editPaymentItem('sale', ${realIdx}, -1, true)">Edit</button> <button style="${btnStyle}; color:red;" onclick="window.deletePaymentItem('sale', ${realIdx}, -1, true)">Del</button></td></tr>`;
+                plainHist += `[${s.advDate || s.date}] Advance: Rs. ${fmtNum(s.adv)} (${s.advMethod || 'Cash'})\n`;
                 totPaid += s.adv;
             }
             if(s.payments && s.payments.length > 0) {
-                s.payments.forEach(p => {
-                    hist += `[${p.date}] Payment: Rs. ${fmtNum(p.amt)} (${p.method})\n`;
+                s.payments.forEach((p, pIdx) => {
+                    histHTML += `<tr><td style="padding:4px; border-bottom:1px solid #eee;">[${p.date}] Payment: Rs. ${fmtNum(p.amt)} (${p.method})</td><td style="padding:4px; border-bottom:1px solid #eee; text-align:right;"><button style="${btnStyle}" onclick="window.editPaymentItem('sale', ${realIdx}, ${pIdx}, false)">Edit</button> <button style="${btnStyle}; color:red;" onclick="window.deletePaymentItem('sale', ${realIdx}, ${pIdx}, false)">Del</button></td></tr>`;
+                    plainHist += `[${p.date}] Payment: Rs. ${fmtNum(p.amt)} (${p.method})\n`;
                     totPaid += p.amt;
                 });
             } else if (s.paid > 0 && !s.payments) {
-                hist += `[${s.date}] Payment: Rs. ${fmtNum(s.paid)} (Cash)\n`;
+                histHTML += `<tr><td style="padding:4px; border-bottom:1px solid #eee;">[${s.date}] Payment: Rs. ${fmtNum(s.paid)} (Cash)</td><td style="padding:4px; border-bottom:1px solid #eee; text-align:right;"><button style="${btnStyle}" onclick="window.editPaymentItem('sale', ${realIdx}, -2, false)">Edit</button> <button style="${btnStyle}; color:red;" onclick="window.deletePaymentItem('sale', ${realIdx}, -2, false)">Del</button></td></tr>`;
+                plainHist += `[${s.date}] Payment: Rs. ${fmtNum(s.paid)} (Cash)\n`;
                 totPaid += s.paid;
             }
+            histHTML += `</table>`;
+            
             let bal = s.grand - totPaid;
-            hist += `\nTotal Paid: Rs. ${fmtNum(totPaid)}\nBalance Due: Rs. ${fmtNum(bal > 0 ? bal : 0)}\n\n`;
+            histHTML += `<br><b>Total Paid:</b> Rs. ${fmtNum(totPaid)}<br><b style="color:red;">Balance Due:</b> Rs. ${fmtNum(bal > 0 ? bal : 0)}<br><br>`;
+            plainHist += `\nTotal Paid: Rs. ${fmtNum(totPaid)}\nBalance Due: Rs. ${fmtNum(bal > 0 ? bal : 0)}\n\n`;
         });
         
-        document.getElementById('invHistoryContent').innerText = hist;
+        document.getElementById('invHistoryContent').innerHTML = histHTML;
+        document.getElementById('invHistoryContent').setAttribute('data-plain', plainHist);
         document.getElementById('invHistoryOverlay').style.display = 'flex';
     };
 
@@ -1630,33 +1744,44 @@
         const m = db.moulds[idx];
         if(!m) return;
         
-        let hist = `Mould Name: ${m.name}\nItem: ${m.item || '-'}\nMaker: ${m.maker || '-'}\nTotal Cost: Rs. ${fmtNum(m.price)}\n\n`;
-        hist += `--- Payment History ---\n`;
+        let plainHist = `Mould Name: ${m.name}\nItem: ${m.item || '-'}\nMaker: ${m.maker || '-'}\nTotal Cost: Rs. ${fmtNum(m.price)}\n\n`;
+        let histHTML = `<b>Mould Name:</b> ${m.name}<br><b>Item:</b> ${m.item || '-'}<br><b>Maker:</b> ${m.maker || '-'}<br><b>Total Cost:</b> Rs. ${fmtNum(m.price)}<br><br>`;
+        
+        plainHist += `--- Payment History ---\n`;
+        histHTML += `<b>--- Payment History ---</b><br><table style="width:100%; font-size:13px; margin-top:5px; border-collapse:collapse;">`;
         let totPaid = 0;
+        
+        const btnStyle = "padding:2px 6px; font-size:11px; margin-left:5px; cursor:pointer;";
         if(m.advAmt > 0) {
-            hist += `[${m.advDate || m.date || '-'}] Advance: Rs. ${fmtNum(m.advAmt)} (${m.advMethod || 'Cash'})\n`;
+            plainHist += `[${m.advDate || m.date || '-'}] Advance: Rs. ${fmtNum(m.advAmt)} (${m.advMethod || 'Cash'})\n`;
+            histHTML += `<tr><td style="padding:4px; border-bottom:1px solid #eee;">[${m.advDate || m.date || '-'}] Advance: Rs. ${fmtNum(m.advAmt)} (${m.advMethod || 'Cash'})</td><td style="padding:4px; border-bottom:1px solid #eee; text-align:right;"><button style="${btnStyle}" onclick="window.editPaymentItem('mould', ${idx}, -1, true)">Edit</button> <button style="${btnStyle}; color:red;" onclick="window.deletePaymentItem('mould', ${idx}, -1, true)">Del</button></td></tr>`;
             totPaid += m.advAmt;
         }
         if(m.payments && m.payments.length > 0) {
-            m.payments.forEach(p => {
-                hist += `[${p.date}] Payment: Rs. ${fmtNum(p.amt)} (${p.method})\n`;
+            m.payments.forEach((p, pIdx) => {
+                plainHist += `[${p.date}] Payment: Rs. ${fmtNum(p.amt)} (${p.method})\n`;
+                histHTML += `<tr><td style="padding:4px; border-bottom:1px solid #eee;">[${p.date}] Payment: Rs. ${fmtNum(p.amt)} (${p.method})</td><td style="padding:4px; border-bottom:1px solid #eee; text-align:right;"><button style="${btnStyle}" onclick="window.editPaymentItem('mould', ${idx}, ${pIdx}, false)">Edit</button> <button style="${btnStyle}; color:red;" onclick="window.deletePaymentItem('mould', ${idx}, ${pIdx}, false)">Del</button></td></tr>`;
                 totPaid += p.amt;
             });
         } else if ((m.paid || 0) > (m.advAmt || 0) && !m.payments) {
             let paidLater = (m.paid || 0) - (m.advAmt || 0);
-            hist += `[${m.date || '-'}] Payment: Rs. ${fmtNum(paidLater)} (Cash)\n`;
+            plainHist += `[${m.date || '-'}] Payment: Rs. ${fmtNum(paidLater)} (Cash)\n`;
+            histHTML += `<tr><td style="padding:4px; border-bottom:1px solid #eee;">[${m.date || '-'}] Payment: Rs. ${fmtNum(paidLater)} (Cash)</td><td style="padding:4px; border-bottom:1px solid #eee; text-align:right;"><button style="${btnStyle}" onclick="window.editPaymentItem('mould', ${idx}, -2, false)">Edit</button> <button style="${btnStyle}; color:red;" onclick="window.deletePaymentItem('mould', ${idx}, -2, false)">Del</button></td></tr>`;
             totPaid += paidLater;
         }
+        histHTML += `</table>`;
         
         let bal = m.price - totPaid;
-        hist += `\nTotal Paid: Rs. ${fmtNum(totPaid)}\nBalance Due: Rs. ${fmtNum(bal > 0 ? bal : 0)}\n\n`;
+        plainHist += `\nTotal Paid: Rs. ${fmtNum(totPaid)}\nBalance Due: Rs. ${fmtNum(bal > 0 ? bal : 0)}\n\n`;
+        histHTML += `<br><b>Total Paid:</b> Rs. ${fmtNum(totPaid)}<br><b style="color:red;">Balance Due:</b> Rs. ${fmtNum(bal > 0 ? bal : 0)}<br><br>`;
         
-        document.getElementById('invHistoryContent').innerText = hist;
+        document.getElementById('invHistoryContent').innerHTML = histHTML;
+        document.getElementById('invHistoryContent').setAttribute('data-plain', plainHist);
         document.getElementById('invHistoryOverlay').style.display = 'flex';
     };
 
     window.copyInvHistory = function() {
-        const text = document.getElementById('invHistoryContent').innerText;
+        const text = document.getElementById('invHistoryContent').getAttribute('data-plain') || document.getElementById('invHistoryContent').innerText;
         navigator.clipboard.writeText(text).then(() => {
             alert("History Copied to Clipboard!");
         });
@@ -3758,14 +3883,24 @@ window.confirmPay = function() {
         document.getElementById('globalItemOptions').innerHTML = db.items.map(i => `<option value="${i.name}">`).join(''); 
         document.getElementById('globalShopOptions').innerHTML = db.shops.map(s => `<option value="${s.name}">`).join('');
         
-        const currentCat = document.getElementById('penAllCat') ? document.getElementById('penAllCat').value : "";
-        if (!currentCat && document.getElementById('penAllShopList')) {
-             document.getElementById('penAllShopList').innerHTML = db.shops.map(s => `<option value="${s.name}">`).join('');
-        }
+        {
+            const currentCat = document.getElementById('penAllCat') ? document.getElementById('penAllCat').value : "";
+            if (document.getElementById('penAllShopList')) {
+                 let shops = db.shops.filter(s => currentCat === "" || (s.category || 'Other') === currentCat);
+                 document.getElementById('penAllShopList').innerHTML = shops.map(s => `<option value="${s.name}">`).join('');
+            }
 
-        const oCat = document.getElementById('ordCatFilter') ? document.getElementById('ordCatFilter').value : "";
-        if (!oCat && document.getElementById('ordShopList') && document.getElementById('ordShopList').options.length === 0) {
-             document.getElementById('ordShopList').innerHTML = db.shops.map(s => `<option value="${s.name}">`).join('');
+            const oCat = document.getElementById('ordCatFilter') ? document.getElementById('ordCatFilter').value : "";
+            if (document.getElementById('ordShopList')) {
+                 let shops = db.shops.filter(s => oCat === "" || (s.category || 'Other') === oCat);
+                 document.getElementById('ordShopList').innerHTML = shops.map(s => `<option value="${s.name}">`).join('');
+            }
+
+            const fCat = document.getElementById('fOrdCat') ? document.getElementById('fOrdCat').value : "";
+            if (document.getElementById('fOrdShopList')) {
+                 let shops = db.shops.filter(s => fCat === "" || (s.category || 'Other') === fCat);
+                 document.getElementById('fOrdShopList').innerHTML = shops.map(s => `<option value="${s.name}">`).join('');
+            }
         }
 
         if(typeof window.updateSmsInvoices === 'function') window.updateSmsInvoices();
@@ -4349,7 +4484,7 @@ window.confirmPay = function() {
                 totMouldPaidLater += paidLater;
                 totMouldBal += bal;
                 
-                return `<tr><td>${(curPage['moulds']-1)*PAGE_LIMIT + index + 1}</td><td>${m.date}</td><td><span style="font-weight:bold;color:var(--mould);cursor:pointer;text-decoration:underline;" onclick="window.showMouldHistory(${realIdx})" title="Click to view Payment History">${m.name}</span></td><td>${m.item || '-'}</td><td>${m.maker || '-'}</td><td>Rs. ${fmtNum(m.price)}</td><td>Rs. ${fmtNum(m.advAmt || 0)}</td><td>Rs. ${fmtNum(paidLater)}</td><td style="color:red;font-weight:bold;">Rs. ${fmtNum(bal)}</td><td><div style="display:flex; gap:5px;"><button class="btn btn-edit" style="font-size:12px;padding:6px;" onclick="window.editMould(${realIdx})">Edit</button> <button class="btn btn-info" style="font-size:12px;padding:6px;" onclick="window.openMdPayModal(${realIdx})">Pay</button> <button class="btn btn-del" style="font-size:12px;padding:6px;" onclick="window.deleteMould(${realIdx})">Del</button></div></td></tr>`;
+                return `<tr><td>${(curPage['moulds']-1)*PAGE_LIMIT + index + 1}</td><td>${m.date}</td><td><span style="font-weight:bold;color:var(--mould);cursor:pointer;text-decoration:underline;" onclick="window.showMouldHistory(${realIdx})" title="Click to view Payment History">${m.name}</span></td><td>${m.item || '-'}</td><td>${m.maker || '-'}</td><td>Rs. ${fmtNum(m.price)}</td><td>Rs. ${fmtNum(m.advAmt || 0)}</td><td>Rs. ${fmtNum(paidLater)}</td><td style="color:red;font-weight:bold;">Rs. ${fmtNum(bal)}</td><td><div style="display:flex; gap:5px;"><button class="btn btn-edit" style="font-size:12px;padding:6px;" onclick="window.editMould(${realIdx})">Edit</button> ${bal > 0 ? `${bal > 0 ? `<button class="btn btn-info" style="font-size:12px;padding:6px;" onclick="window.openMdPayModal(${realIdx})">Pay</button>` : ``}` : ``} <button class="btn btn-del" style="font-size:12px;padding:6px;" onclick="window.deleteMould(${realIdx})">Del</button></div></td></tr>`;
             }).join('');
             
             if(document.getElementById('mouldFooter')) {
@@ -4491,6 +4626,12 @@ window.confirmPay = function() {
         let currM = dNowStr.substring(0,7); 
         let mTotal = 0, yTotal = 0, advTotal = 0;
         let itemRevMap = {};
+        db.items.forEach(i => {
+            itemRevMap[i.name] = 0;
+        });
+        db.items.forEach(i => {
+            itemRevMap[i.name] = 0;
+        });
         let itemQtyMap = {};
         let itemCostMapProg1 = {};
         
@@ -4536,8 +4677,8 @@ window.confirmPay = function() {
                 window.itemChartInstance = new Chart(ctx.getContext('2d'), {
                     type: 'doughnut',
                     data: {
-                        labels: sortedItems.slice(0, 10),
-                        datasets: [{ data: sortedItems.slice(0,10).map(k=>itemRevMap[k]), backgroundColor: ['#2ecc71','#3498db','#9b59b6','#e67e22','#e74c3c','#f1c40f','#1abc9c','#34495e','#d35400','#7f8c8d'] }]
+                        labels: sortedItems,
+                        datasets: [{ data: sortedItems.map(k=>itemRevMap[k]), backgroundColor: sortedItems.map((_, idx) => ['#2ecc71','#3498db','#9b59b6','#e67e22','#e74c3c','#f1c40f','#1abc9c','#34495e','#d35400','#7f8c8d'][idx % 10]) }]
                     },
                     options: { responsive: true, maintainAspectRatio: false }
                 });
