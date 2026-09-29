@@ -3004,7 +3004,8 @@
             loc: document.getElementById('shLoc').value, 
             p1: document.getElementById('shPh1').value, 
             p2: document.getElementById('shPh2').value, 
-            notes: document.getElementById('shNotes').value, 
+            notes: document.getElementById('shNotes').value,
+            holidays: Array.from(document.getElementById('shHolidays').selectedOptions).map(o => o.value),
             img: tempImg || (idx > -1 ? db.shops[idx].img : "") 
         };
         
@@ -4500,9 +4501,10 @@ window.confirmPay = function() {
             if(!tbody) return;
             tbody.innerHTML = '';
             db.shops.forEach(shop => {
-                let holidayBadge = shop.holidayName === 'None' 
+                let hols = (shop.holidays || []).join(', ');
+                let holidayBadge = (!hols || hols === 'None' || hols === '') 
                     ? `<span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">Open Everyday</span>`
-                    : `<span class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs">${shop.holidayName}</span>`;
+                    : `<span class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs">${hols}</span>`;
                 
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50">
