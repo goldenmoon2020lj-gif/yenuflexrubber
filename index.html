@@ -1552,7 +1552,7 @@
                     <span>Rs. <span id="p-adv"></span></span>
                 </div>
                 <div class="summary-row">
-                    <span>Paid Today</span>
+                    <span>Paid Today <div id="p-pay-date" style="font-size:11px; font-weight:normal; color:#555;"></div></span>
                     <span>Rs. <span id="p-pay"></span></span>
                 </div>
                 <div class="grand-total">
@@ -2212,6 +2212,16 @@
         document.getElementById('p-adv').innerText = fmtNum(s.adv);
         document.getElementById('p-adv-date').innerText = s.advDate || "-";
         document.getElementById('p-pay').innerText = fmtNum(s.paid);
+        let payDates = [];
+        if(s.payments && s.payments.length > 0) {
+            payDates = s.payments.map(p => p.date);
+        }
+        let uniquePayDates = [...new Set(payDates)];
+        if(uniquePayDates.length > 0) {
+            document.getElementById('p-pay-date').innerText = "(" + uniquePayDates.join(', ') + ")";
+        } else {
+            document.getElementById('p-pay-date').innerText = "";
+        }
 
         const balAmount = s.grand - (s.adv||0) - (s.paid||0);
         document.getElementById('p-bal').innerText = balAmount <= 0 ? `Rs. 0.00` : `Rs. ${fmtNum(balAmount)}`;
