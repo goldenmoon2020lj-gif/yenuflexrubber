@@ -69,12 +69,12 @@
           const newRef = push(ref(cloudDB, 'yenuflex_data/' + table));
           obj._fbKey = newRef.key;
           set(newRef, obj);
+      } else {
+          db[table].push(obj);
       }
-      db[table].push(obj);
   };
   
   window.fbUpdate = function(table, idx, obj) {
-      db[table][idx] = obj;
       if (auth.currentUser) {
           if (obj._fbKey) {
               let outObj = {...obj}; delete outObj._fbKey;
@@ -82,16 +82,19 @@
           } else {
               update(ref(cloudDB, 'yenuflex_data/' + table + '/' + idx), obj);
           }
+      } else {
+          db[table][idx] = obj;
       }
   };
 
   window.fbDelete = function(table, idx) {
       let obj = db[table][idx];
       let fbKey = obj ? obj._fbKey : null;
-      db[table].splice(idx, 1);
       if (auth.currentUser) {
           if (fbKey) remove(ref(cloudDB, 'yenuflex_data/' + table + '/' + fbKey));
           else remove(ref(cloudDB, 'yenuflex_data/' + table + '/' + idx));
+      } else {
+          db[table].splice(idx, 1);
       }
   };
 
@@ -1714,6 +1717,12 @@
             </div>
         </div>
 
+        <div id="inv-bank-details" style="width:100%; margin-top:20px; padding:15px; background:#f0f9ff; border-radius:8px; border:1px solid #b3d9ff; display:none;">
+                <h4 style="margin:0 0 8px 0; color:#0056b3; font-size:14px;">Bank Transfer Details:</h4>
+                <p style="margin:2px 0; font-size:13px; color:#333;"><strong>Account Holder:</strong> <span id="inv-bank-holder"></span></p>
+                <p style="margin:2px 0; font-size:13px; color:#333;"><strong>Account Number:</strong> <span id="inv-bank-accno"></span></p>
+                <p style="margin:2px 0; font-size:13px; color:#333;"><strong>Bank & Branch:</strong> <span id="inv-bank-branch"></span></p>
+            </div>
         <div class="footer">
             <div class="qr-section">
                 <img id="inv-qr" src="" alt="Invoice QR" style="display:none;" onload="this.style.display='inline-block'">
@@ -1723,12 +1732,7 @@
                 <p style="margin: 0; font-weight: bold; font-size: 13px; color: #000;">This is a computer generated invoice.</p>
                 <p style="margin: 0; font-weight: bold; font-size: 13px; color: #000;">No signature is required.</p>
             </div>
-            <div id="inv-bank-details" style="width:100%; margin-top:20px; padding:15px; background:#f0f9ff; border-radius:8px; border:1px solid #b3d9ff; display:none;">
-                <h4 style="margin:0 0 8px 0; color:#0056b3; font-size:14px;">Bank Transfer Details:</h4>
-                <p style="margin:2px 0; font-size:13px; color:#333;"><strong>Account Holder:</strong> <span id="inv-bank-holder"></span></p>
-                <p style="margin:2px 0; font-size:13px; color:#333;"><strong>Account Number:</strong> <span id="inv-bank-accno"></span></p>
-                <p style="margin:2px 0; font-size:13px; color:#333;"><strong>Bank & Branch:</strong> <span id="inv-bank-branch"></span></p>
-            </div>
+            
             <div style="width: 100%; text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px dashed #ccc; clear: both;">
                 <p style="margin: 0; padding-bottom:10px; font-size: 16px; font-weight: bold; color: #000;">Thank You for Your Business! Please Visit Us Again.</p>
             </div>
@@ -2543,25 +2547,31 @@
             } else {
                 if(summaryEl) summaryEl.style.display = 'flex';
                 if(footerEl) footerEl.style.display = 'flex';
+                // Bank details display is managed by populate functions, so leave it as is if it's visible
             }
 
-            await new Promise(r => setTimeout(r, 400)); 
+            await new Promise(r => setTimeout(r, 600)); 
 
             const canvas = await html2canvas(invCard, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 850 });
             const imgData = canvas.toDataURL('image/jpeg', 1.0);
             
-            let canvasRatio = pdfWidth / canvas.width;
+            const margin = 10;
+            const contentWidth = pdfWidth - (2 * margin);
+            const maxContentHeight = pdfHeight - (2 * margin);
+            
+            let canvasRatio = contentWidth / canvas.width;
             let finalImgHeight = canvas.height * canvasRatio;
             
-            if (totalPages === 1 && finalImgHeight > pdfHeight - 20) {
-                 let scaleFactor = (pdfHeight - 20) / finalImgHeight;
+            // ALWAYS scale down if it exceeds page height!
+            if (finalImgHeight > maxContentHeight) {
+                 let scaleFactor = maxContentHeight / finalImgHeight;
                  finalImgHeight *= scaleFactor;
                  canvasRatio *= scaleFactor;
             }
 
             let finalWidth = canvas.width * canvasRatio;
             let xOffset = (pdfWidth - finalWidth) / 2;
-            let yOffset = totalPages === 1 && finalImgHeight < pdfHeight ? 10 : 0;
+            let yOffset = finalImgHeight < maxContentHeight ? 10 : margin;
             
             if (page > 1) pdf.addPage();
             pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalWidth, finalImgHeight);
@@ -2592,6 +2602,8 @@
         if(summaryEl) summaryEl.style.display = 'flex';
         if(footerEl) footerEl.style.display = 'flex';
     };
+
+
 
     function openLightbox(src) {
         if(!src) return;
@@ -4376,6 +4388,16 @@ window.confirmPay = function() {
         sync(); 
     };
 
+    
+    window.deleteTaxInvoice = function(i) {
+        const reason = prompt("කරුණාකර Tax Invoice එක මකා දැමීමට හේතුව ඇතුළත් කරන්න:");
+        if (reason === null || reason.trim() === "") return;
+        const data = db.taxInvoices[i];
+        window.fbPush('deleted', { type: 'TaxInvoice', ref: data.taxInvNo, reason: reason, date: new Date().toLocaleString(), data: data });
+        window.fbDelete('taxInvoices', i);
+        sync();
+    };
+    
     window.deleteSale = function(i) {
         const reason = prompt("කරුණාකර Invoice එක මකා දැමීමට හේතුව ඇතුළත් කරන්න:"); 
         if (reason === null || reason.trim() === "") return;
