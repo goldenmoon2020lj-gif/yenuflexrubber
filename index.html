@@ -588,6 +588,7 @@
         </div>
         <div style="display: flex; gap: 12px; background: #ecf0f1; padding: 10px 20px; border-radius: 12px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);">
             <button class="hdr-btn h-backup" onclick="exportData()">💾 Backup</button>
+            <button class="hdr-btn" id="btn-drive-backup" style="background: #27ae60; color: white;" onclick="saveToDrive()">☁️ Drive Backup</button>
             <button class="hdr-btn h-restore" onclick="document.getElementById('importFile').click()">📂 Restore</button>
             <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
             <button class="hdr-btn h-reset" onclick="resetSystemData()">🔥 Reset</button>
@@ -6678,6 +6679,48 @@ window.confirmPay = function() {
         
         Object.keys(curPage).forEach(k => curPage[k] = 1);
         window.render();
+    };
+
+    
+    window.saveToDrive = function() {
+        // මීළඟ පේළියේ ඇති වචන ඉවත් කර ඔබගේ WEB APP URL එක මෙතනට Paste කරන්න. (උදාහරණ: "https://script.google.com/macros/s/.../exec")
+        const scriptUrl = "https://script.google.com/macros/s/AKfycbxV-z4hRCoB8PFJotmGXgOlHZQMkuTEHvW1GBrIR_LVlPmIr6Z-jnY5BHQElllgfkZF/exec"; 
+        
+        if(scriptUrl === "මෙතනට_ඔබේ_WEB_APP_URL_එක_දාන්න" || scriptUrl === "") {
+            alert("කරුණාකර Web App URL එක Code එකට ඇතුළත් කරන්න.");
+            return;
+        }
+        
+        const btn = document.getElementById('btn-drive-backup');
+        const originalText = btn.innerText;
+        btn.innerText = "⏳ Uploading...";
+        btn.disabled = true;
+
+        const dataStr = JSON.stringify(db);
+        const fileName = `YENUFLEX_BACKUP_${new Date().toISOString().substr(0,10)}.json`;
+
+        fetch(scriptUrl, {
+            method: 'POST',
+            body: JSON.stringify({ filename: fileName, content: dataStr }),
+            // text/plain is used to avoid CORS preflight issues
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.status === "success") {
+                alert("Backup එක සාර්ථකව Google Drive එකට Save විය!");
+            } else {
+                alert("Error: " + data.message);
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert("Upload කිරීම අසාර්ථකයි. අන්තර්ජාල සම්බන්ධතාවය පරීක්ෂා කරන්න.");
+        })
+        .finally(() => {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        });
     };
 
     window.exportData = function() {
