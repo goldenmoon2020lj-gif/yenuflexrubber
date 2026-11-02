@@ -98,7 +98,7 @@
                   // Listen to large tables with limit
                   const largeTables = ['orders', 'sales', 'returns', 'deleted', 'tax', 'transactions', 'moulds', 'maintenance', 'withdrawals', 'taxInvoices', 'visitHistory'];
                   largeTables.forEach(t => {
-                      onValue(query(ref(cloudDB, 'yenuflex_data/' + t), limitToLast(200)), (snap) => {
+                      onValue(ref(cloudDB, 'yenuflex_data/' + t), (snap) => {
                           cloudData[t] = snap.val() || {};
                           checkAllLoaded();
                           if(tablesLoaded >= 16) window.syncFromCloud({[t]: cloudData[t]});
@@ -151,9 +151,8 @@
           if (typeof fbKey === 'string' && !fbKey.match(/^\d+$/)) {
               update(ref(cloudDB, 'yenuflex_data/' + table + '/' + fbKey), outObj);
           } else {
-              update(ref(cloudDB, 'yenuflex_data/' + table + '/' + idOrKey), obj);
+              update(ref(cloudDB, 'yenuflex_data/' + table + '/' + idOrKey), outObj);
           }
-          // Do not update local array directly, Firebase onValue will handle it.
       } else {
           if (typeof idOrKey === 'number') {
               db[table][idOrKey] = obj;
@@ -180,7 +179,7 @@
       if (auth.currentUser) {
           if (fbKey !== null && fbKey !== undefined) {
               remove(ref(cloudDB, 'yenuflex_data/' + table + '/' + fbKey));
-          } else if (typeof idx === 'number') {
+          } else if (typeof idx === 'number' && idx > -1) {
               remove(ref(cloudDB, 'yenuflex_data/' + table + '/' + idx));
           }
       } else {
@@ -191,9 +190,17 @@
   };
 
   window.fbSyncItem = function(table, obj) {
-      if (auth.currentUser && obj && obj._fbKey) {
-          let outObj = {...obj}; delete outObj._fbKey;
-          update(ref(cloudDB, 'yenuflex_data/' + table + '/' + obj._fbKey), outObj);
+      if (auth.currentUser && obj) {
+          let outObj = {...obj}; 
+          let key = outObj._fbKey;
+          if(outObj._fbKey) delete outObj._fbKey;
+          
+          if(key !== undefined && key !== null) {
+              update(ref(cloudDB, 'yenuflex_data/' + table + '/' + key), outObj);
+          } else {
+              let idx = db[table].indexOf(obj);
+              if(idx > -1) update(ref(cloudDB, 'yenuflex_data/' + table + '/' + idx), outObj);
+          }
       }
   };
 
@@ -2099,48 +2106,114 @@
     const QR_BASE64 = "data:image/png;base64,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"; 
 
     
-window.generateUnifiedMsg = function(s, isWA, isFinished, forceTax = false) {
-    const bal = s.grand - (s.adv||0) - (s.paid||0);
-    const b = isWA ? "*" : "";
-    const divider = isWA ? "" : "----------------------\n";
-    
-    let isTaxObj = db.taxInvoices ? db.taxInvoices.find(t => t.taxInvNo === s.inv) : null;
-    let isTax = isTaxObj || forceTax;
-    
-    let title = "";
-    if (isFinished) {
-        title = isTax ? "TAX INVOICE - PAYMENT FINISHED" : "INVOICE - PAYMENT FINISHED";
-        if(isWA) title = isTax ? "✅ *TAX INVOICE - PAYMENT FINISHED* ✅" : "✅ *INVOICE - PAYMENT FINISHED* ✅";
-    } else {
-        title = isTax ? "PENDING TAX INVOICE" : "PENDING INVOICE";
-        if(isWA) title = isTax ? "⏳ *PENDING TAX INVOICE* ⏳" : "⏳ *PENDING INVOICE* ⏳";
+window.generateUnifiedMsg = function(s, isWA, isFinished, forceTax) {
+    var msg = "";
+    try {
+        var fm = function(n) {
+            var num = parseFloat(n);
+            if(isNaN(num)) return "0.00";
+            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        
+        var sGrand = parseFloat(s.grand) || 0;
+        var sAdv = parseFloat(s.adv) || 0;
+        var sPaid = parseFloat(s.paid) || 0;
+        var bal = sGrand - sAdv - sPaid;
+        if (bal < 0) bal = 0;
+
+        var b = isWA ? "*" : "";
+        var divider = isWA ? "" : "----------------------\n";
+        
+        var isTax = false;
+        var taxObjAmt = 0;
+        if (s.inv && typeof db !== 'undefined' && db.taxInvoices) {
+            for (var key in db.taxInvoices) {
+                if (db.taxInvoices[key] && db.taxInvoices[key].taxInvNo === s.inv) {
+                    isTax = true;
+                    taxObjAmt = parseFloat(db.taxInvoices[key].taxAmt) || 0;
+                    break;
+                }
+            }
+        }
+        if (forceTax) isTax = true;
+        
+        var title = isFinished ? "PAYMENT FINISHED" : "PENDING INVOICE";
+        if (isTax) {
+            title = isFinished ? "TAX INVOICE - PAYMENT FINISHED" : "PENDING TAX INVOICE";
+        }
+        if (isWA) title = "✅ *" + title + "* ✅";
+        
+        var totalItemDiscount = 0;
+        var itemText = "";
+        var subT = 0;
+
+        var itemsArr = s.items || [];
+        if (!Array.isArray(itemsArr)) {
+            itemsArr = Object.values(itemsArr);
+        }
+
+        for (var i = 0; i < itemsArr.length; i++) {
+            var it = itemsArr[i];
+            if(!it) continue;
+            
+            var p = parseFloat(it.p) || 0;
+            var q = parseFloat(it.q) || 0;
+            var gp = p;
+            
+            if (it.gp !== undefined && it.gp !== null && it.gp !== "") {
+                gp = parseFloat(it.gp) || 0;
+            } else if (it.d !== undefined && it.d !== null && it.d !== "") {
+                gp = p * (1 - (parseFloat(it.d) || 0) / 100);
+            }
+            
+            if (p > gp) { totalItemDiscount += ((p - gp) * q); }
+            subT += (gp * q);
+            
+            var dt = (p > gp) ? " (Saved Rs." + fm((p - gp) * q) + ")" : "";
+            itemText += (it.n || "Item") + " x " + q + " @ Rs." + fm(gp) + " = Rs." + fm(gp * q) + dt + "\n";
+        }
+        
+        if (s.subtotal !== undefined && s.subtotal !== null && s.subtotal !== "") {
+            subT = parseFloat(s.subtotal) || 0;
+        }
+        
+        var dP = parseFloat(s.discPerc) || 0;
+        var dA = parseFloat(s.discAmt) || 0;
+        var tP = parseFloat(s.taxPerc) || 0;
+        var tA = parseFloat(s.taxAmt) || 0;
+        var actualTaxAmt = tA || taxObjAmt;
+
+        msg = b + "YENUFLEX RUBBER PRODUCTS" + b + "\n" +
+              divider + title + "\n" +
+              "Invoice No: " + (s.inv || "-") + "\n" +
+              "Date: " + (s.date || "-") + "\n" +
+              "Shop: " + (s.shop || "-") + "\n" +
+              "Status: " + ((bal <= 0) ? "PAID IN FULL" : "PENDING") + "\n" +
+              divider + "Items:\n" + itemText + divider +
+              "Sub Total: Rs. " + fm(subT) + "\n";
+
+        if (totalItemDiscount > 0) {
+            msg += "Discount (Savings): - Rs. " + fm(totalItemDiscount) + "\n";
+        }
+        if (dA > 0) {
+            msg += "Discount (" + dP + " Percent): - Rs. " + fm(dA) + "\n";
+        }
+        if (isTax && actualTaxAmt > 0) {
+            msg += "Tax Amount: + Rs. " + fm(actualTaxAmt) + "\n";
+        } else if (tA > 0) {
+            msg += "Tax (" + tP + " Percent): + Rs. " + fm(tA) + "\n";
+        }
+
+        msg += "Grand Total: Rs. " + fm(sGrand) + "\n" +
+               "Advance (-): Rs. " + fm(sAdv) + "\n" +
+               "Paid Today: Rs. " + fm(sPaid) + "\n" +
+               "Balance: Rs. " + fm(bal) + "\n" +
+               divider + "Thank you for your business!";
+               
+        return msg;
+    } catch(err) {
+        return "YENUFLEX: SMS Error: " + err.message;
     }
-    
-    let totalItemDiscount = 0;
-    let itemText = (s.items||[]).map(it => {
-        let p = it.p || 0;
-        let q = it.q || 0;
-        let gp = it.gp !== undefined ? it.gp : (it.d !== undefined ? p * (1 - it.d/100) : p);
-        if (p > gp) { totalItemDiscount += ((p - gp) * q); }
-        return window.getItemDescWithDisc(it);
-    }).join('\n');
-    
-    let extraLines = "";
-    if(totalItemDiscount > 0) extraLines += `\n Discount (Savings): - Rs. ${fmtNum(totalItemDiscount)}`;
-    if(s.discAmt > 0) extraLines += `\n Discount (${s.discPerc}%): - Rs. ${fmtNum(s.discAmt)}`;
-    
-    let actualTaxAmt = s.taxAmt || (isTaxObj ? isTaxObj.taxAmt : 0);
-    if(isTax && actualTaxAmt > 0) {
-        extraLines += `\n Tax Amount: + Rs. ${fmtNum(actualTaxAmt)}`;
-    } else if(s.taxAmt > 0) {
-        extraLines += `\n Tax (${s.taxPerc}%): + Rs. ${fmtNum(s.taxAmt)}`;
-    }
-    
-    let pStatus = (bal <= 0) ? "PAID IN FULL" : "PENDING";
-    let msg = `${b}YENUFLEX RUBBER PRODUCTS${b}\n${divider}${title}\n Invoice No: ${s.inv}\n Date: ${s.date}\n Shop: ${s.shop}\n Status: ${pStatus}\n${divider} Items:\n${itemText}\n${divider} Sub Total: Rs. ${fmtNum(s.subtotal)}${extraLines}\n Grand Total: Rs. ${fmtNum(s.grand)}
- Paid: Rs. ${fmtNum((s.adv||0) + (s.paid||0))}
- Balance: Rs. ${fmtNum(bal <= 0 ? 0 : bal)}\n${divider}Thank you for your business!`;
-    return msg;
 };
 const fmtNum = (num) => Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -2290,17 +2363,15 @@ window.getItemDescWithDisc = function(it) {
     };
 
     window.sendSystemSMS = function(phoneNumber, smsText) {
-        const baseUrl = "https://trigger.macrodroid.com/04e853c9-0737-4556-9cc4-f7a197eb86f2/sendsms";
-        const params = new URLSearchParams({
-            phone_number: phoneNumber,
-            msg_body: smsText
-        });
-        fetch(`${baseUrl}?${params.toString()}`, {
-            method: 'GET',
-            mode: 'no-cors'
-        })
-        .then(response => console.log("Webhook triggered for:", phoneNumber))
-        .catch(error => console.error("Error sending webhook:", error));
+        try {
+            var baseUrl = "https://trigger.macrodroid.com/04e853c9-0737-4556-9cc4-f7a197eb86f2/sendsms";
+            var encodedMsg = encodeURIComponent(String(smsText));
+            var encodedNum = encodeURIComponent(String(phoneNumber));
+            fetch(baseUrl + "?phone_number=" + encodedNum + "&msg_body=" + encodedMsg, {
+                method: 'GET',
+                mode: 'no-cors'
+            }).catch(function(e){ console.error(e); });
+        } catch(e) { console.error(e); }
     };
 
     window.deletePaymentItem = function(type, itemIdx, pIdx, isAdvance) {
@@ -3095,6 +3166,14 @@ window.getItemDescWithDisc = function(it) {
                     }
                     arr.push(item);
                 }
+                db[key] = arr;
+            } else if (Array.isArray(cloudData[key])) {
+                let arr = cloudData[key];
+                arr.forEach((item, idx) => {
+                    if(typeof item === 'object' && item !== null) {
+                        item._fbKey = idx.toString();
+                    }
+                });
                 db[key] = arr;
             } else {
                 db[key] = cloudData[key] || [];
@@ -4273,7 +4352,7 @@ window.confirmPay = function() {
         if (confirmSMS) {
             let sShop = db.shops.find(x => x.name === sale.shop);
             if (sShop && sShop.p1) {
-                let msg = window.generateUnifiedMsg(sale, false, (sale.grand - (sale.adv||0) - sale.paid) <= 0.05);
+                let msg = window.generateUnifiedMsg(sale, false, (sale.grand - (sale.adv||0) - sale.paid) <= 0.05, window.isTaxInvoiceFlag);
                 window.sendSystemSMS(sShop.p1, msg);
                 alert("SMS එක පද්ධතියෙන් Send කළා!");
             } else {
